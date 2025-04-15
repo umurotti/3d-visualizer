@@ -103,4 +103,7 @@ visualizer/
 
 - Works best with recent versions of Chrome or Firefox  
 - Designed for local visual debugging — not production  
-- Easily embeddable in larger training/experiment loops  
+- Easily embeddable in larger training/experiment loops
+
+
+Inspired by the needs of fast real-time mesh and pose inspection during model training.
