@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D Viewer</title>
+  <link rel="icon" href="data:,">
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      border-radius: 5px;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label><input type="checkbox" id="togglePointCloud" checked /> Point Cloud</label><br>
+    <label><input type="checkbox" id="toggleFrustums" checked /> Frustums</label><br>
+    <label><input type="checkbox" id="toggleAxes" checked /> Coordinate Axes</label><br>
+    <label><input type="checkbox" id="toggleGlobalAxes" checked /> Global Axes</label><br>
+    <label><input type="checkbox" id="toggleInitialMesh" checked /> Initial Mesh</label><br>
+    <label><input type="checkbox" id="toggleUpdatedMesh" checked /> Updated Mesh</label>
+  </div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
