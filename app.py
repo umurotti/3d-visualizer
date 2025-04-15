@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
+import socket
 
 app = Flask(__name__)
 CORS(app)
@@ -84,5 +85,14 @@ def add_mesh():
     }
     return "Updated mesh set", 200
 
+def find_free_port():
+    s = socket.socket()
+    s.bind(('', 0))  # Let the OS pick a free port
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
 if __name__ == "__main__":
-    app.run(port=5006, debug=False)
+    free_port = find_free_port()
+    print(f"Running on http://localhost:{free_port}")
+    app.run(port=free_port, debug=False)
