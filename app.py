@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
-import socket
 
 app = Flask(__name__)
 CORS(app)
@@ -93,6 +92,16 @@ def find_free_port():
     return port
 
 if __name__ == "__main__":
-    free_port = find_free_port()
-    print(f"Running on http://localhost:{free_port}")
-    app.run(port=free_port, debug=False)
+    import socket
+    import contextlib
+
+    def find_free_port():
+        with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.bind(('', 0))
+            return s.getsockname()[1]
+
+    port = find_free_port()
+    with open("port.txt", "w") as f:
+        f.write(str(port))
+
+    app.run(port=port, debug=False)

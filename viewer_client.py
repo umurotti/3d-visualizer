@@ -4,9 +4,16 @@ import requests
 import trimesh
 
 class Online3DViewer:
-    def __init__(self, host="http://localhost:5006", timeout=1):
-        self.host = host
-        self.timeout = timeout
+    def __init__(self, host=None):
+        if host is not None:
+            self.host = host
+        else:
+            try:
+                with open("port.txt", "r") as f:
+                    port = f.read().strip()
+                self.host = f"http://localhost:{port}"
+            except Exception as e:
+                raise RuntimeError(f"Could not read viewer port from port.txt: {e}")
 
     def load_scene(self, mesh=None, pointcloud=None):
         payload = {}
