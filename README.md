@@ -32,7 +32,7 @@ pip install flask flask-cors
 python app.py
 ```
 
-Open the browser at: [http://localhost:{YOUR_PORT_HERE}]
+🌐 Open the browser at: [http://localhost:<your-port-here>](http://localhost:<your-port-here>)
 
 ---
 
