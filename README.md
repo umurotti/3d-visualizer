@@ -69,7 +69,7 @@ viewer.add_global_axes()
 # Add updated mesh
 viewer.add_mesh(mesh, label="epoch_1")
 ```
-<video src="assets/output.webm" autoplay loop muted playsinline></video>
+![Demo](assets/output.gif)
 
 ---
 
