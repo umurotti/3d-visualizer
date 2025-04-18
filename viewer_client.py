@@ -13,7 +13,10 @@ class Online3DViewer:
                     port = f.read().strip()
                 self.host = f"http://localhost:{port}"
             except Exception as e:
-                raise RuntimeError(f"Could not read viewer port from port.txt: {e}")
+                print(f"Could not read viewer port from port.txt: {e}")
+            finally:
+                self.host = f"http://localhost:5000" # Default to port 5000 if file not found
+                print(f"Using viewer host: {self.host}")
         self.timeout = timeout
 
     def load_scene(self, mesh=None, pointcloud=None):
@@ -82,3 +85,10 @@ class Online3DViewer:
             }, timeout=self.timeout)
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add mesh: {e}")
+
+    def clear_scene(self):
+        """Clear all scene elements: point cloud, frustums, axes, and meshes."""
+        try:
+            requests.post(f"{self.host}/clear_scene", timeout=1)
+        except requests.exceptions.RequestException as e:
+            print(f"[WARN] Could not clear scene: {e}")

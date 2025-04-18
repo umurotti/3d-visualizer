@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -84,24 +84,20 @@ def add_mesh():
     }
     return "Updated mesh set", 200
 
-def find_free_port():
-    s = socket.socket()
-    s.bind(('', 0))  # Let the OS pick a free port
-    port = s.getsockname()[1]
-    s.close()
-    return port
+@app.route("/clear_scene", methods=["POST"])
+def clear_scene():
+    scene["points"] = []
+    scene["frustums"] = []
+    scene["axes"] = []
+    scene["meshes"] = []
+    scene["updated_mesh"] = None
+    scene["add_global_axes"] = False
+    
+    return "Scene cleared", 200
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
-    import socket
-    import contextlib
-
-    def find_free_port():
-        with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-            s.bind(('', 0))
-            return s.getsockname()[1]
-
-    port = find_free_port()
-    with open("port.txt", "w") as f:
-        f.write(str(port))
-
-    app.run(port=port, debug=False)
+    app.run(debug=False)
