@@ -103,7 +103,6 @@ demo/
 └── bunny/
     └── reconstruction/
         └── bun_zipper_res3.ply
-    └── run_demo.py
 ```
 
 Ensure that the `bun_zipper_res3.ply` file is present in the path above.
