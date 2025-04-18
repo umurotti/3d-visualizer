@@ -32,7 +32,7 @@ pip install flask flask-cors
 python app.py
 ```
 
-Open the browser at: [http://localhost:5006](http://localhost:5006)
+🌐 Open the browser at: [http://localahost:{YOUR-PORT-HERE}](http://localhost:{your-port-here})
 
 ---
 
@@ -69,6 +69,7 @@ viewer.add_global_axes()
 # Add updated mesh
 viewer.add_mesh(mesh, label="epoch_1")
 ```
+![Demo](assets/output.gif)
 
 ---
 
@@ -103,4 +104,7 @@ visualizer/
 
 - Works best with recent versions of Chrome or Firefox  
 - Designed for local visual debugging — not production  
-- Easily embeddable in larger training/experiment loops  
+- Easily embeddable in larger training/experiment loops
+
+
+Inspired by the needs of fast real-time mesh and pose inspection during model training.
