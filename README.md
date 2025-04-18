@@ -73,30 +73,42 @@ viewer.add_mesh(mesh, label="epoch_1")
 
 ---
 
-## 📁 Project Structure
+## 🧪 Demo
+
+You can run a full demonstration using real mesh data (Stanford Bunny) to showcase all interactive features: mesh updates, frustum visualization, global/object axes, and orbiting motion.
+
+This demo:
+- Loads the Stanford Bunny mesh
+- Centers it at the origin
+- Iteratively updates the mesh position and orientation along a circular orbit
+- Visualizes each iteration with a new green frustum and labeled object axis
+- Adds a red frustum for a known view
+
+### 🔁 Iterative Mesh Update Demo
+
+To run it:
+
+```bash
+python demo/run_demo.py
+```
+
+### 🐇 Demo Preview
+
+https://github.com/your_username/3d-visualizer/assets/demo-preview.gif
+
+### 🗂️ Demo Folder Structure
 
 ```
-visualizer/
-├── app.py
-├── viewer_client.py
-├── templates/
-│   └── viewer.html
-├── static/
-│   ├── js/
-│   │   ├── main.js
-│   │   ├── scene.js
-│   │   ├── api.js
-│   │   ├── utils.js
-│   │   └── controls.js
-│   └── vendor/
-│       └── three/
-│           ├── build/
-│           │   └── three.module.js
-│           └── examples/
-│               └── jsm/
-│                   └── controls/
-│                       └── OrbitControls.js
+demo/
+└── bunny/
+    └── reconstruction/
+        └── bun_zipper_res3.ply
+    └── run_demo.py
 ```
+
+Ensure that the `bun_zipper_res3.ply` file is present in the path above.
+
+You can download the Stanford Bunny `.ply` file from the [Stanford 3D Scanning Repository](http://graphics.stanford.edu/data/3Dscanrep/) if needed.
 
 ---
 
