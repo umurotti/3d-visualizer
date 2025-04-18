@@ -89,7 +89,7 @@ This demo:
 To run it:
 
 ```bash
-python demo/run_demo.py
+python run_demo.py
 ```
 
 ### 🐇 Demo Preview
