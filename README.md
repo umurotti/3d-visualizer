@@ -94,7 +94,7 @@ python demo/run_demo.py
 
 ### 🐇 Demo Preview
 
-https://github.com/your_username/3d-visualizer/assets/demo-preview.gif
+![Demo](assets/demo-preview.gif)
 
 ### 🗂️ Demo Folder Structure
 
