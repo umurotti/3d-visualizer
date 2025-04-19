@@ -76,13 +76,14 @@ def load_scene():
     return "Scene loaded", 200
 
 @app.route("/add_mesh", methods=["POST"])
-def add_mesh():
-    data = request.json
+async def add_mesh():
+    data = await request.get_json()
     scene["updated_mesh"] = {
         "mesh": data["mesh"],
         "label": data.get("label", "updated")
     }
     return "Updated mesh set", 200
+
 
 @app.route("/clear_scene", methods=["POST"])
 def clear_scene():

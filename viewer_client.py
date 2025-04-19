@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import requests
 import trimesh
+import aiohttp
 
 class Online3DViewer:
     def __init__(self, host=None, timeout=1):
@@ -11,11 +12,11 @@ class Online3DViewer:
             try:
                 with open("port.txt", "r") as f:
                     port = f.read().strip()
-                self.host = f"http://localhost:{port}"
             except Exception as e:
+                port = 5000
                 print(f"Could not read viewer port from port.txt: {e}")
             finally:
-                self.host = f"http://localhost:5000" # Default to port 5000 if file not found
+                self.host = f"http://localhost:{port}"
                 print(f"Using viewer host: {self.host}")
         self.timeout = timeout
 
