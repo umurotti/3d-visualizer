@@ -5,7 +5,7 @@ import trimesh
 from async_base import AsyncPostClient
 
 class Online3DViewer(AsyncPostClient):
-    def __init__(self, host=None, timeout=1):
+    def __init__(self, host=None, timeout=3):
         if host is not None:
             self.host = host
         else:

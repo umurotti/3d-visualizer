@@ -3,7 +3,7 @@ import atexit
 import requests
 
 class AsyncPostClient:
-    _executor = ThreadPoolExecutor(max_workers=8)
+    _executor = ThreadPoolExecutor(max_workers=1)
 
     @staticmethod
     def fire_and_forget_post(url, json=None, timeout=1):
