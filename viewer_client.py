@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import requests
 import trimesh
-import aiohttp
 
 class Online3DViewer:
     def __init__(self, host=None, timeout=1):
