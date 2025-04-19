@@ -1,8 +1,9 @@
 import numpy as np
 import torch
-import requests
+import threading
 import trimesh
 from async_base import AsyncPostClient
+import time
 
 class Online3DViewer(AsyncPostClient):
     def __init__(self, host=None, timeout=3):
@@ -19,6 +20,12 @@ class Online3DViewer(AsyncPostClient):
                 self.host = f"http://localhost:5000" # Default to port 5000 if file not found
                 print(f"Using viewer host: {self.host}")
         self.timeout = timeout
+        
+        self._serialize_thread = None
+        self._serialize_lock = threading.Lock()
+        self._serialize_event = threading.Event()
+        self._latest_mesh = None
+        self._faces_cache = None
 
     def load_scene(self, mesh=None, pointcloud=None):
         payload = {}
@@ -67,18 +74,37 @@ class Online3DViewer(AsyncPostClient):
 
 
     def add_mesh(self, mesh, label="updated"):
-        if not isinstance(mesh, trimesh.Trimesh):
-            raise ValueError("Expected a trimesh.Trimesh object")
+        with self._serialize_lock:
+            self._latest_mesh = mesh
+            self._serialize_event.set()
 
-        mesh_data = {
-            "vertices": mesh.vertices.tolist(),
-            "faces": mesh.faces.tolist()
-        }
+        # if a thread is already running, do nothing
+        if self._serialize_thread is None or not self._serialize_thread.is_alive():
+            self._serialize_thread = threading.Thread(target=self._serialize_worker, args=(label,))
+            self._serialize_thread.start()
+            
+    def _serialize_worker(self, label):
+        while True:
+            self._serialize_event.wait()
+            self._serialize_event.clear()
 
-        self.fire_and_forget_post(f"{self.host}/add_mesh", json={
-            "mesh": mesh_data,
-            "label": label
-        }, timeout=self.timeout)
+            with self._serialize_lock:
+                mesh = self._latest_mesh
+                
+            vertices = mesh.vertices.tolist()
+
+            if self._faces_cache is None:
+                self._faces_cache = mesh.faces.tolist()
+
+            mesh_data = {
+                "vertices": vertices,
+                "faces": self._faces_cache
+            }
+
+            self.fire_and_forget_post(f"{self.host}/add_mesh", json={
+                "mesh": mesh_data,
+                "label": label
+            }, timeout=self.timeout)
 
 
     def clear_scene(self):
