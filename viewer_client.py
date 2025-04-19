@@ -2,8 +2,9 @@ import numpy as np
 import torch
 import requests
 import trimesh
+from async_base import AsyncPostClient
 
-class Online3DViewer:
+class Online3DViewer(AsyncPostClient):
     def __init__(self, host=None, timeout=1):
         if host is not None:
             self.host = host
@@ -32,22 +33,22 @@ class Online3DViewer:
                 "vertices": mesh.vertices.tolist(),
                 "faces": mesh.faces.tolist()
             }
-
-        try:
-            requests.post(f"{self.host}/load_scene", json=payload, timeout=self.timeout)
-        except requests.exceptions.RequestException as e:
-            print(f"[WARN] Could not load scene: {e}")
+            
+        self.fire_and_forget_post(
+            f"{self.host}/load_scene",
+            json=payload,
+            timeout=self.timeout
+        )
 
     def add_frustum(self, pose, color="#00ff00"):
         if isinstance(pose, torch.Tensor):
             pose = pose.detach().cpu().numpy()
         elif not isinstance(pose, np.ndarray):
             raise ValueError("Pose must be a 4x4 numpy array or torch.Tensor")
+
         data = {"pose": pose.tolist(), "color": color}
-        try:
-            requests.post(f"{self.host}/add_frustum", json=data, timeout=1)
-        except requests.exceptions.RequestException as e:
-            print(f"[WARN] Could not add frustum: {e}")
+        self.fire_and_forget_post(f"{self.host}/add_frustum", json=data, timeout=self.timeout)
+
 
     def add_object_axis(self, pose, label="Object"):
         if isinstance(pose, torch.Tensor):
@@ -55,19 +56,15 @@ class Online3DViewer:
         elif not isinstance(pose, np.ndarray):
             raise ValueError("Pose must be a 4x4 numpy array or torch.Tensor")
 
-        try:
-            requests.post(f"{self.host}/add_object_axis", json={
-                "pose": pose.tolist(),
-                "label": label
-            }, timeout=self.timeout)
-        except requests.exceptions.RequestException as e:
-            print(f"[WARN] Could not add object axis: {e}")
+        self.fire_and_forget_post(f"{self.host}/add_object_axis", json={
+            "pose": pose.tolist(),
+            "label": label
+        }, timeout=self.timeout)
+
 
     def add_global_axes(self):
-        try:
-            requests.post(f"{self.host}/add_global_axes", timeout=self.timeout)
-        except requests.exceptions.RequestException as e:
-            print(f"[WARN] Could not enable global axes: {e}")
+        self.fire_and_forget_post(f"{self.host}/add_global_axes", timeout=self.timeout)
+
 
     def add_mesh(self, mesh, label="updated"):
         if not isinstance(mesh, trimesh.Trimesh):
@@ -78,17 +75,12 @@ class Online3DViewer:
             "faces": mesh.faces.tolist()
         }
 
-        try:
-            requests.post(f"{self.host}/add_mesh", json={
-                "mesh": mesh_data,
-                "label": label
-            }, timeout=self.timeout)
-        except requests.exceptions.RequestException as e:
-            print(f"[WARN] Could not add mesh: {e}")
+        self.fire_and_forget_post(f"{self.host}/add_mesh", json={
+            "mesh": mesh_data,
+            "label": label
+        }, timeout=self.timeout)
+
 
     def clear_scene(self):
         """Clear all scene elements: point cloud, frustums, axes, and meshes."""
-        try:
-            requests.post(f"{self.host}/clear_scene", timeout=1)
-        except requests.exceptions.RequestException as e:
-            print(f"[WARN] Could not clear scene: {e}")
+        self.fire_and_forget_post(f"{self.host}/clear_scene", timeout=self.timeout)
