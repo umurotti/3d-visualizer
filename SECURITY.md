@@ -6,8 +6,7 @@ Thank you for helping to make **3D Visualizer** a safe and secure project!
 
 If you discover a security vulnerability or concern, **please do not open a public issue**. Instead, report it directly to us via **email**:
 
-**📧 gog@in.tum.de**  
-(Replace with a valid contact email or GitHub username if needed.)
+**📧 gog@in.tum.de**
 
 We will respond promptly to validate the issue and take appropriate action.
 
