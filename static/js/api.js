@@ -10,6 +10,7 @@ import {
 } from './scene.js';
 
 import { applyVisibility } from './scene.js';
+import { updatePointCloudLabel, updateMeshLabel } from './utils.js';
 
 export function fetchSceneData(scene) {
   fetch('/scene')
@@ -33,12 +34,13 @@ export function fetchSceneData(scene) {
 
       // Handle updated mesh
       if (data.updated_mesh) {
-        setUpdatedMesh(scene, data.updated_mesh.mesh);
+        setUpdatedMesh(scene, data.updated_mesh.mesh, data.updated_mesh.label || "Updated Mesh");
       } else if (objectGroups.updatedMesh) {
         scene.remove(objectGroups.updatedMesh);
         objectGroups.updatedMesh.geometry.dispose();
         objectGroups.updatedMesh.material.dispose();
         objectGroups.updatedMesh = null;
+        updateMeshLabel("None"); // Reset the mesh label
       }
 
       // Handle initial point cloud
@@ -53,12 +55,13 @@ export function fetchSceneData(scene) {
 
       // Handle updated point cloud
       if (data.updated_point_cloud) {
-        setUpdatedPointCloud(scene, data.updated_point_cloud.points);
+        setUpdatedPointCloud(scene, data.updated_point_cloud.points, data.updated_point_cloud.label || "Updated Point Cloud");
       } else if (objectGroups.updatedPointCloud) {
         scene.remove(objectGroups.updatedPointCloud);
         objectGroups.updatedPointCloud.geometry.dispose();
         objectGroups.updatedPointCloud.material.dispose();
         objectGroups.updatedPointCloud = null;
+        updatePointCloudLabel("None"); // Reset the point cloud label
       }
 
       // Handle global axes

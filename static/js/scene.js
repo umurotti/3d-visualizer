@@ -1,4 +1,4 @@
-import { createAxisLabel } from './utils.js';
+import { createAxisLabel, updateLabelBar, updatePointCloudLabel, updateMeshLabel } from './utils.js';
 import * as THREE from '/static/vendor/three/build/three.module.js';
 
 export const objectGroups = {
@@ -70,7 +70,7 @@ export function setInitialPointCloud(scene, points) {
   objectGroups.initialPointCloud = pointcloud;
 }
 
-export function setUpdatedPointCloud(scene, points) {
+export function setUpdatedPointCloud(scene, points, label = "Updated Point Cloud") {
   if (objectGroups.updatedPointCloud) {
     scene.remove(objectGroups.updatedPointCloud);
     objectGroups.updatedPointCloud.geometry.dispose();
@@ -80,6 +80,9 @@ export function setUpdatedPointCloud(scene, points) {
   const pointcloud = createPointCloudFromData(points, 0x00ff00);
   scene.add(pointcloud);
   objectGroups.updatedPointCloud = pointcloud;
+
+  // Update the point cloud label
+  updatePointCloudLabel(label);
 }
 
 function createPointCloudFromData(entry, color) {
@@ -98,7 +101,7 @@ export function setInitialMesh(scene, meshData) {
   objectGroups.initialMesh = mesh;
 }
 
-export function setUpdatedMesh(scene, meshData) {
+export function setUpdatedMesh(scene, meshData, label = "Updated Mesh") {
   if (objectGroups.updatedMesh) {
     scene.remove(objectGroups.updatedMesh);
     objectGroups.updatedMesh.geometry.dispose();
@@ -108,6 +111,9 @@ export function setUpdatedMesh(scene, meshData) {
   const mesh = createMeshFromData(meshData, 0x00ff00);
   scene.add(mesh);
   objectGroups.updatedMesh = mesh;
+
+  // Update the mesh label
+  updateMeshLabel(label);
 }
 
 function createMeshFromData(entry, color) {

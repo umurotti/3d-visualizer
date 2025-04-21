@@ -18,4 +18,24 @@ export function createAxisLabel(text, color = 'white') {
     sprite.scale.set(0.4, 0.2, 1.0);
     return sprite;
   }
-  
+
+export function updateLabelBar(text) {
+  const labelBar = document.getElementById('label-bar');
+  if (labelBar) {
+    labelBar.textContent = `Currently showing: ${text}`;
+  }
+}
+
+export function updatePointCloudLabel(text) {
+  const pointCloudLabel = document.getElementById('pointcloud-label');
+  if (pointCloudLabel) {
+    pointCloudLabel.textContent = `Point Cloud: ${text}`;
+  }
+}
+
+export function updateMeshLabel(text) {
+  const meshLabel = document.getElementById('mesh-label');
+  if (meshLabel) {
+    meshLabel.textContent = `Mesh: ${text}`;
+  }
+}

@@ -96,7 +96,11 @@ def clear_scene():
     scene["initial_mesh"] = None
     scene["updated_mesh"] = None
     scene["add_global_axes"] = False
-    
+
+    # Reset labels
+    scene["updated_point_cloud_label"] = "None"
+    scene["updated_mesh_label"] = "None"
+
     return "Scene cleared", 200
 
 @app.route("/health", methods=["GET"])

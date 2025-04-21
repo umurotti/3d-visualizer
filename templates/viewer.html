@@ -16,6 +16,26 @@
       border-radius: 5px;
       font-family: sans-serif;
     }
+    #label-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      z-index: 1000;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .label-section {
+      flex: 1;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -28,7 +48,10 @@
     <label><input type="checkbox" id="toggleInitialMesh" checked /> Initial Mesh</label><br>
     <label><input type="checkbox" id="toggleUpdatedMesh" checked /> Updated Mesh</label>
   </div>
-
+  <div id="label-bar">
+    <div id="pointcloud-label" class="label-section">Point Cloud: None</div>
+    <div id="mesh-label" class="label-section">Mesh: None</div>
+  </div>
   <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>
