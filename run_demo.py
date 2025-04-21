@@ -2,7 +2,7 @@ import time
 import numpy as np
 import trimesh
 from viewer_client import Online3DViewer
-from scipy.spatial.transform import Rotation as R
+import colorsys
 
 def normalize(v):
     return v / np.linalg.norm(v)
@@ -45,7 +45,7 @@ viewer.add_frustum(known_pose, color="#ff0000")
 print("Starting orbit demo...")
 
 radius = 1
-num_orbits = 10
+num_orbits = 25
 
 for i in range(num_orbits):
     print(f"[Demo] Iteration {i + 1}")
@@ -65,16 +65,17 @@ for i in range(num_orbits):
     # Add green frustum that looks at the updated mesh
     cam_pos = updated_pos + np.array([0.2, 0.2, 0.2])  # offset from object
     cam_pose = look_at(cam_pos, updated_pos)
-    viewer.add_frustum(cam_pose, color="#00ff00")
+    # color rainbow-like gradient from red → orange → green → blue → violet
+    viewer.add_frustum(cam_pose, color = "#{:02x}{:02x}{:02x}".format(*[int(255*x) for x in colorsys.hsv_to_rgb(i / num_orbits, 1, 1)]))
 
     # Add object coordinate axis
     axis_pose = np.eye(4)
     axis_pose[:3, 3] = updated_pos
-    viewer.add_object_axis(axis_pose, label=f"Obj {i+1}")
+    #viewer.add_object_axis(axis_pose, label=f"Obj {i+1}")
 
     # Send updated mesh
     viewer.update_mesh(rotated, label=f"update_{i+1}")
 
-    time.sleep(1)
+    time.sleep(0.5)
 
 print("Done.")
