@@ -134,38 +134,113 @@ function createMeshFromData(entry, color) {
   return new THREE.Mesh(geometry, material);
 }
 
+function getFrustumPointsFromK(K, width, height, near, far) {
+  const fx = K[0][0], fy = K[1][1];
+  const cx = K[0][2], cy = K[1][2];
+
+  const corners = [
+      [0, 0],         // top-left
+      [width, 0],     // top-right
+      [width, height],// bottom-right
+      [0, height],    // bottom-left
+  ];
+
+  function pixelToCam(u, v, depth) {
+      const x = (u - cx) * depth / fx;
+      const y = (v - cy) * depth / fy;
+      return new THREE.Vector3(x, y, depth);
+  }
+
+  // Compute corners at near and far planes
+  const nearPoints = corners.map(([u, v]) => pixelToCam(u, v, near));
+  const farPoints = corners.map(([u, v]) => pixelToCam(u, v, far));
+
+  return nearPoints.concat(farPoints);  // 8 points
+}
+
+function createFrustumLines(points, color) {
+  const indices = [
+      // near plane
+      [0,1],[1,2],[2,3],[3,0],
+      // far plane
+      [4,5],[5,6],[6,7],[7,4],
+      // sides
+      [0,4],[1,5],[2,6],[3,7]
+  ];
+
+  const geometry = new THREE.BufferGeometry();
+  const vertices = [];
+
+  for (const [i, j] of indices) {
+      vertices.push(points[i].x, points[i].y, points[i].z);
+      vertices.push(points[j].x, points[j].y, points[j].z);
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+
+  const material = new THREE.LineBasicMaterial({ color: color });
+  return new THREE.LineSegments(geometry, material);
+}
+
+function applyPoseToPoints(points, poseMatrix) {
+  return points.map(p => p.clone().applyMatrix4(poseMatrix));
+}
+
+function arrayToMatrix4(poseArray) {
+  // Flatten the 4x4 nested array into a 1D array (row-major order)
+  const flat = poseArray.flat();
+  const m = new THREE.Matrix4();
+  m.set(...flat);
+  return m;
+}
+
+function drawCameraAxes(origin, poseMatrix, length = 0.1) {
+  const axes = [];
+
+  const directions = {
+      x: new THREE.Vector3(length, 0, 0), // right
+      y: new THREE.Vector3(0, length, 0), // up
+      z: new THREE.Vector3(0, 0, length), // forward
+  };
+
+  const colors = {
+      x: 0xff0000,
+      y: 0x00ff00,
+      z: 0x0000ff,
+  };
+
+  for (let axis in directions) {
+      const dir = directions[axis].clone().applyMatrix4(poseMatrix).sub(origin);
+      const arrow = new THREE.ArrowHelper(
+          dir.clone().normalize(),
+          origin,
+          dir.length(),
+          colors[axis],
+          0.015,
+          0.01
+      );
+      axes.push(arrow);
+  }
+
+  return axes;
+}
+
+
 export function updateFrustums(scene, frustums) {
   objectGroups.frustums.forEach(obj => scene.remove(obj));
   objectGroups.frustums = [];
 
   frustums.forEach(entry => {
-    const pose = entry.pose;
-    const color = entry.color || "#00ff00";
-
-    const geometry = new THREE.ConeGeometry(0.05, 0.1, 8);
-    geometry.rotateX(-Math.PI / 2);
-    geometry.translate(0, 0, 0.05);
-
-    const material = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.5
-    });
-    const cone = new THREE.Mesh(geometry, material);
-
-    const m = pose.flat();
-    const rot = new THREE.Matrix4().set(
-      m[0], m[1], m[2], 0,
-      m[4], m[5], m[6], 0,
-      m[8], m[9], m[10], 0,
-      0,    0,    0,    1
-    );
-    const pos = new THREE.Vector3(m[3], m[7], m[11]);
-
-    cone.setRotationFromMatrix(rot);
-    cone.position.copy(pos);
-    scene.add(cone);
-    objectGroups.frustums.push(cone);
+    let frustumPoints = getFrustumPointsFromK(entry.intrinsics, entry.width, entry.height, entry.near, entry.far);
+    frustumPoints = applyPoseToPoints(frustumPoints, arrayToMatrix4(entry.pose));
+    const frustum = createFrustumLines(frustumPoints, entry.color);
+    scene.add(frustum);
+    if (entry.visualize_orientation) {
+      const axes = drawCameraAxes(frustumPoints[0], arrayToMatrix4(entry.pose));
+      axes.forEach(axis => scene.add(axis));
+      objectGroups.frustums.push(...axes);
+    }
+    objectGroups.frustums.push(frustum);
   });
 }
 

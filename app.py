@@ -69,8 +69,23 @@ def update_point_cloud():
 def add_frustum():
     data = request.json
     pose = data["pose"]
-    color = data.get("color", "#00ff00")  # Default green if not provided
-    scene["frustums"].append({"pose": pose, "color": color})
+    intrinsic = data["intrinsic"]
+    width = data["width"]
+    height = data["height"]
+    near = data["near"]
+    far = data["far"]
+    color = data["color"]
+    visualize_orientation = data["visualize_orientation"]
+    scene["frustums"].append({
+        "pose": pose,
+        "intrinsics": intrinsic,
+        "width": width,
+        "height": height,
+        "near": near,
+        "far": far,
+        "color": color,
+        "visualize_orientation": visualize_orientation,
+        })
     return "Frustum added", 200
 
 @app.route("/add_object_axis", methods=["POST"])

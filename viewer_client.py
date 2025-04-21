@@ -69,18 +69,49 @@ class Online3DViewer:
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not load scene: {e}")
 
-    def add_frustum(self, pose, color="#00ff00"):
+    def add_frustum(self, pose=np.eye(4), intrinsic=np.array([
+                                                    [500,   0, 320],
+                                                    [  0, 500, 240],
+                                                    [  0,   0,   1]
+                                                    ], dtype=np.float32), image_resolution=(640, 480), near=0.0, far=0.1, color="#00ff00", visualize_orientation=False):
+        # Check if pose is a 4x4 matrix
         if isinstance(pose, torch.Tensor):
             pose = pose.detach().cpu().numpy()
         elif not isinstance(pose, np.ndarray):
             raise ValueError("Pose must be a 4x4 numpy array or torch.Tensor")
-        data = {"pose": pose.tolist(), "color": color}
+        
+        # Check if intrinsic is 3x3
+        if isinstance(intrinsic, torch.Tensor):
+            intrinsic = intrinsic.detach().cpu().numpy()
+        elif not isinstance(intrinsic, np.ndarray):
+            raise ValueError("Intrinsics must be a 4x4 numpy array or torch.Tensor")
+        
+        # Check if image_resolution is a tuple of (width, height)
+        if isinstance(image_resolution, tuple) and len(image_resolution) == 2:
+            width, height = image_resolution
+        else:
+            raise ValueError("Image resolution must be a tuple of (width, height)")
+        
+        # Check if near and far are numeric values
+        if not isinstance(near, (int, float)) or not isinstance(far, (int, float)):
+            raise ValueError("Near and far must be numeric values")
+        
+        data = {
+                "pose": pose.tolist(),
+                "intrinsic": intrinsic.tolist(),
+                "width": width,
+                "height": height,
+                "near": near,
+                "far": far,
+                "color": color,
+                "visualize_orientation": visualize_orientation
+                }
         try:
             requests.post(f"{self.host}/add_frustum", json=data, timeout=1)
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add frustum: {e}")
 
-    def add_object_axis(self, pose, label="Object"):
+    def add_object_axis(self, pose=np.eye(4), label="Object"):
         if isinstance(pose, torch.Tensor):
             pose = pose.detach().cpu().numpy()
         elif not isinstance(pose, np.ndarray):
