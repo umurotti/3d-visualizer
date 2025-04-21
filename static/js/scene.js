@@ -2,7 +2,8 @@ import { createAxisLabel } from './utils.js';
 import * as THREE from '/static/vendor/three/build/three.module.js';
 
 export const objectGroups = {
-  pointCloud: null,
+  initialPointCloud: null,
+  updatedPointCloud: null,
   frustums: [],
   axes: [],
   globalAxes: [],
@@ -11,7 +12,8 @@ export const objectGroups = {
 };
 
 export const visibilityState = {
-  pointCloud: true,
+  initialPointCloud: true,
+  updatedPointCloud: true,
   frustums: true,
   axes: true,
   globalAxes: true,
@@ -20,7 +22,8 @@ export const visibilityState = {
 };
 
 export function applyVisibility() {
-  if (objectGroups.pointCloud) objectGroups.pointCloud.visible = visibilityState.pointCloud;
+  if (objectGroups.initialPointCloud) objectGroups.initialPointCloud.visible = visibilityState.initialPointCloud;
+  if (objectGroups.updatedPointCloud) objectGroups.updatedPointCloud.visible = visibilityState.updatedPointCloud;
   objectGroups.frustums.forEach(f => f.visible = visibilityState.frustums);
   objectGroups.axes.forEach(a => a.visible = visibilityState.axes);
   objectGroups.globalAxes.forEach(a => a.visible = visibilityState.globalAxes);  // ✅
@@ -59,16 +62,70 @@ export function animate(renderer, scene, camera) {
   renderer.render(scene, camera);
 }
 
-export function updatePointCloud(scene, points) {
-  if (objectGroups.pointCloud) scene.remove(objectGroups.pointCloud);
-  if (!points || points.length === 0) return;
+export function setInitialPointCloud(scene, points) {
+  if (objectGroups.initialPointCloud) scene.remove(objectGroups.initialPointCloud);
 
+  const pointcloud = createPointCloudFromData(points, 0x888888);
+  scene.add(pointcloud);
+  objectGroups.initialPointCloud = pointcloud;
+}
+
+export function setUpdatedPointCloud(scene, points) {
+  if (objectGroups.updatedPointCloud) {
+    scene.remove(objectGroups.updatedPointCloud);
+    objectGroups.updatedPointCloud.geometry.dispose();
+    objectGroups.updatedPointCloud.material.dispose();
+  }
+
+  const pointcloud = createPointCloudFromData(points, 0x00ff00);
+  scene.add(pointcloud);
+  objectGroups.updatedPointCloud = pointcloud;
+}
+
+function createPointCloudFromData(entry, color) {
   const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(points.flat()), 3));
-  const material = new THREE.PointsMaterial({ color: 0x00aaff, size: 0.02 });
-  const pointsMesh = new THREE.Points(geometry, material);
-  scene.add(pointsMesh);
-  objectGroups.pointCloud = pointsMesh;
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(entry.flat()), 3));
+  const material = new THREE.PointsMaterial({ color, size: 0.02 });
+  return new THREE.Points(geometry, material);
+}
+
+
+export function setInitialMesh(scene, meshData) {
+  if (objectGroups.initialMesh) scene.remove(objectGroups.initialMesh);
+
+  const mesh = createMeshFromData(meshData, 0x888888);
+  scene.add(mesh);
+  objectGroups.initialMesh = mesh;
+}
+
+export function setUpdatedMesh(scene, meshData) {
+  if (objectGroups.updatedMesh) {
+    scene.remove(objectGroups.updatedMesh);
+    objectGroups.updatedMesh.geometry.dispose();
+    objectGroups.updatedMesh.material.dispose();
+  }
+
+  const mesh = createMeshFromData(meshData, 0x00ff00);
+  scene.add(mesh);
+  objectGroups.updatedMesh = mesh;
+}
+
+function createMeshFromData(entry, color) {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(entry.vertices.flat()), 3));
+  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(entry.faces.flat()), 1));
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    metalness: 0.1,
+    roughness: 0.8,
+    opacity: 0.5,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+
+  return new THREE.Mesh(geometry, material);
 }
 
 export function updateFrustums(scene, frustums) {
@@ -126,44 +183,6 @@ export function updateAxes(scene, axes) {
 
     objectGroups.axes.push(helper, labelSprite);
   });
-}
-
-export function setInitialMesh(scene, meshData) {
-  if (objectGroups.initialMesh) scene.remove(objectGroups.initialMesh);
-
-  const mesh = createMeshFromData(meshData, 0x888888);
-  scene.add(mesh);
-  objectGroups.initialMesh = mesh;
-}
-
-export function setUpdatedMesh(scene, meshData) {
-  if (objectGroups.updatedMesh) {
-    scene.remove(objectGroups.updatedMesh);
-    objectGroups.updatedMesh.geometry.dispose();
-    objectGroups.updatedMesh.material.dispose();
-  }
-
-  const mesh = createMeshFromData(meshData, 0x00ff00);
-  scene.add(mesh);
-  objectGroups.updatedMesh = mesh;
-}
-
-function createMeshFromData(entry, color) {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(entry.vertices.flat()), 3));
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(entry.faces.flat()), 1));
-  geometry.computeVertexNormals();
-
-  const material = new THREE.MeshStandardMaterial({
-    color,
-    metalness: 0.1,
-    roughness: 0.8,
-    opacity: 0.5,
-    transparent: true,
-    side: THREE.DoubleSide
-  });
-
-  return new THREE.Mesh(geometry, material);
 }
 
 let globalAxesDrawn = false;

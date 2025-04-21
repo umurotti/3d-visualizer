@@ -18,8 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchSceneData(scene);
 
   // Hook up toggles — these MUST match the checkbox IDs in viewer.html
-  document.getElementById('togglePointCloud').addEventListener('change', e => {
-    visibilityState.pointCloud = e.target.checked;
+  document.getElementById('toggleInitialPointCloud').addEventListener('change', e => {
+    visibilityState.initialPointCloud = e.target.checked;
+    applyVisibility();
+  });
+
+  document.getElementById('toggleUpdatedPointCloud').addEventListener('change', e => {
+    visibilityState.updatedPointCloud = e.target.checked;
     applyVisibility();
   });
 

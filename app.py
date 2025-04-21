@@ -6,10 +6,11 @@ CORS(app)
 
 # Shared scene state
 scene = {
-    "points": [],
+    "initial_point_cloud": None,
+    "updated_point_cloud": None,
     "frustums": [],
     "axes": [],
-    "meshes": [],           # Only used for the initial mesh
+    "initial_mesh": None,           # Only used for the initial mesh
     "updated_mesh": None,   # Last updated mesh (will replace the previous)
     "add_global_axes": False
 }
@@ -18,23 +19,51 @@ scene = {
 def index():
     return render_template("viewer.html")  # Loads modular viewer (main.js)
 
+@app.route("/load_scene", methods=["POST"])
+def load_scene():
+    data = request.json
+    scene["initial_point_cloud"] = {
+                                    "points": data.get("points", []),
+                                    "label": "initial"
+                                    }
+    scene["initial_mesh"] = {
+                            "mesh": data.get("mesh", []),
+                            "label": "initial"
+                            }
+        
+    scene["add_global_axes"] = True
+
+    return "Scene loaded", 200
+
 @app.route("/scene", methods=["GET"])
 def get_scene():
     return jsonify({
-        "points": scene["points"],
+        "initial_point_cloud": scene["initial_point_cloud"],
+        "updated_point_cloud": scene["updated_point_cloud"],
         "frustums": scene["frustums"],
         "axes": scene["axes"],
-        "meshes": scene["meshes"],
+        "initial_mesh": scene["initial_mesh"],
         "updated_mesh": scene["updated_mesh"],
         "add_global_axes": scene["add_global_axes"]
     })
 
-
-@app.route("/update_pointcloud", methods=["POST"])
-def update_pointcloud():
+@app.route("/update_mesh", methods=["POST"])
+def update_mesh():
     data = request.json
-    scene["points"] = data.get("points", [])
-    return "Point cloud updated", 200
+    scene["updated_mesh"] = {
+        "mesh": data["mesh"],
+        "label": data.get("label", "updated")
+    }
+    return "Updated mesh set", 200
+
+@app.route("/update_point_cloud", methods=["POST"])
+def update_point_cloud():
+    data = request.json
+    scene["updated_point_cloud"] = {
+        "points": data["points"],
+        "label": data.get("label", "updated")
+    }
+    return "Updated point cloud set", 200
 
 @app.route("/add_frustum", methods=["POST"])
 def add_frustum():
@@ -58,38 +87,13 @@ def add_global_axes():
     scene["add_global_axes"] = True
     return "Global axes flag set", 200
 
-@app.route("/load_scene", methods=["POST"])
-def load_scene():
-    data = request.json
-    scene["points"] = data.get("points", [])
-    scene["meshes"] = []
-
-    mesh = data.get("mesh")
-    if mesh:
-        scene["meshes"].append({
-            "mesh": mesh,
-            "label": "initial"
-        })
-        
-    scene["add_global_axes"] = True
-
-    return "Scene loaded", 200
-
-@app.route("/update_mesh", methods=["POST"])
-def update_mesh():
-    data = request.json
-    scene["updated_mesh"] = {
-        "mesh": data["mesh"],
-        "label": data.get("label", "updated")
-    }
-    return "Updated mesh set", 200
-
 @app.route("/clear_scene", methods=["POST"])
 def clear_scene():
-    scene["points"] = []
+    scene["initial_point_cloud"] = None
+    scene["updated_point_cloud"] = None
     scene["frustums"] = []
     scene["axes"] = []
-    scene["meshes"] = []
+    scene["initial_mesh"] = None
     scene["updated_mesh"] = None
     scene["add_global_axes"] = False
     

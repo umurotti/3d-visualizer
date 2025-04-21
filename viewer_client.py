@@ -19,6 +19,37 @@ class Online3DViewer:
                 print(f"Using viewer host: {self.host}")
         self.timeout = timeout
 
+    def update_mesh(self, mesh, label="updated"):
+        if not isinstance(mesh, trimesh.Trimesh):
+            raise ValueError("Expected a trimesh.Trimesh object")
+
+        mesh_data = {
+            "vertices": mesh.vertices.tolist(),
+            "faces": mesh.faces.tolist()
+        }
+
+        try:
+            requests.post(f"{self.host}/update_mesh", json={
+                "mesh": mesh_data,
+                "label": label
+            }, timeout=self.timeout)
+        except requests.exceptions.RequestException as e:
+            print(f"[WARN] Could not add mesh: {e}")
+            
+    def update_point_cloud(self, pointcloud, label="updated"):
+        if isinstance(pointcloud, torch.Tensor):
+            pointcloud = pointcloud.detach().cpu().numpy()
+        elif not isinstance(pointcloud, np.ndarray):
+            raise ValueError("Expected a numpy array or torch.Tensor")
+
+        try:
+            requests.post(f"{self.host}/update_point_cloud", json={
+                "points": pointcloud.tolist(),
+                "label": label
+            }, timeout=self.timeout)
+        except requests.exceptions.RequestException as e:
+            print(f"[WARN] Could not add point cloud: {e}")
+    
     def load_scene(self, mesh=None, pointcloud=None):
         payload = {}
 
@@ -68,23 +99,6 @@ class Online3DViewer:
             requests.post(f"{self.host}/add_global_axes", timeout=self.timeout)
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not enable global axes: {e}")
-
-    def update_mesh(self, mesh, label="updated"):
-        if not isinstance(mesh, trimesh.Trimesh):
-            raise ValueError("Expected a trimesh.Trimesh object")
-
-        mesh_data = {
-            "vertices": mesh.vertices.tolist(),
-            "faces": mesh.faces.tolist()
-        }
-
-        try:
-            requests.post(f"{self.host}/update_mesh", json={
-                "mesh": mesh_data,
-                "label": label
-            }, timeout=self.timeout)
-        except requests.exceptions.RequestException as e:
-            print(f"[WARN] Could not add mesh: {e}")
 
     def clear_scene(self):
         """Clear all scene elements: point cloud, frustums, axes, and meshes."""
