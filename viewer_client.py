@@ -69,7 +69,7 @@ class Online3DViewer:
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not enable global axes: {e}")
 
-    def add_mesh(self, mesh, label="updated"):
+    def update_mesh(self, mesh, label="updated"):
         if not isinstance(mesh, trimesh.Trimesh):
             raise ValueError("Expected a trimesh.Trimesh object")
 
@@ -79,7 +79,7 @@ class Online3DViewer:
         }
 
         try:
-            requests.post(f"{self.host}/add_mesh", json={
+            requests.post(f"{self.host}/update_mesh", json={
                 "mesh": mesh_data,
                 "label": label
             }, timeout=self.timeout)
