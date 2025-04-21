@@ -1,7 +1,7 @@
 # 🔭 3D Visualizer
 
 A lightweight 3D visualizer built with **Flask** and **Three.js**.  
-It lets you render meshes, point clouds, frustums, and coordinate axes in the browser — all controlled live via a Python API.
+It lets you render meshes (Trimesh), point clouds, frustums, and coordinate axes in the browser — all controlled live via a Python API.
 
 ---
 
