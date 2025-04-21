@@ -9,8 +9,8 @@ def normalize(v):
 
 def look_at(camera_position, target_position, up=np.array([0, 1, 0])):
     forward = normalize(target_position - camera_position)
-    right = normalize(np.cross(up, forward))
-    true_up = np.cross(forward, right)
+    right = normalize(np.cross(forward, up))
+    true_up = np.cross(right, forward)
 
     pose = np.eye(4)
     pose[:3, :3] = np.stack([right, true_up, forward], axis=1)
