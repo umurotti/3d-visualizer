@@ -122,3 +122,7 @@ You can download the Stanford Bunny `.ply` file from the [Stanford 3D Scanning R
 
 
 Inspired by the needs of fast real-time mesh and pose inspection during model training.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=umurotti/3d-visualizer&type=Date)](https://www.star-history.com/#umurotti/3d-visualizer&Date)
