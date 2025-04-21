@@ -73,7 +73,7 @@ class Online3DViewer(AsyncPostClient):
         self.fire_and_forget_post(f"{self.host}/add_global_axes", timeout=self.timeout)
 
 
-    def add_mesh(self, mesh, label="updated"):
+    def update_mesh(self, mesh, label="updated"):
         with self._serialize_lock:
             self._latest_mesh = mesh
             self._serialize_event.set()
@@ -101,7 +101,7 @@ class Online3DViewer(AsyncPostClient):
                 "faces": self._faces_cache
             }
 
-            self.fire_and_forget_post(f"{self.host}/add_mesh", json={
+            self.fire_and_forget_post(f"{self.host}/update_mesh", json={
                 "mesh": mesh_data,
                 "label": label
             }, timeout=self.timeout)

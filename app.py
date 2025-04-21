@@ -75,8 +75,8 @@ def load_scene():
 
     return "Scene loaded", 200
 
-@app.route("/add_mesh", methods=["POST"])
-def add_mesh():
+@app.route("/update_mesh", methods=["POST"])
+def update_mesh():
     data = request.json
     scene["updated_mesh"] = {
         "mesh": data["mesh"],

@@ -62,7 +62,7 @@ import time
 
 start = time.time()
 
-steps = 100
+steps = 400
 for i in range(steps + 1):
     alpha = i / steps
     interpolated_vertices = (1 - alpha) * sphere.vertices + alpha * bunny.vertices
@@ -71,7 +71,7 @@ for i in range(steps + 1):
 
     # Prepare async mesh update
     #start = time.time()
-    viewer.add_mesh(interpolated_mesh, label=f"step_{i}")
+    #viewer.update_mesh(interpolated_mesh, label=f"step_{i}")
     #end = time.time()
     #print(f"Mesh update time for step {i}: {end - start:.6f} seconds")
 
