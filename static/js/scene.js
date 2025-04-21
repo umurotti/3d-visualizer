@@ -184,7 +184,7 @@ export function updateAxes(scene, axes) {
     scene.add(helper);
 
     const labelSprite = createAxisLabel(label);
-    labelSprite.position.copy(pos.clone().add(new THREE.Vector3(0, 0.3, 0)));
+    labelSprite.position.copy(pos.clone().add(new THREE.Vector3(0, 0.4, 0))); // Adjusted position to avoid clipping
     scene.add(labelSprite);
 
     objectGroups.axes.push(helper, labelSprite);
