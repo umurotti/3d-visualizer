@@ -68,6 +68,9 @@ viewer.add_global_axes()
 
 # Update mesh
 viewer.update_mesh(mesh, label="epoch_1")
+
+# Update pointcloud
+viewer.update_point_cloud(points+2, label="epoch_1")
 ```
 ![Demo](assets/output.gif)
 
