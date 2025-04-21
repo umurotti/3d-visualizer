@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -75,8 +75,8 @@ def load_scene():
 
     return "Scene loaded", 200
 
-@app.route("/add_mesh", methods=["POST"])
-def add_mesh():
+@app.route("/update_mesh", methods=["POST"])
+def update_mesh():
     data = request.json
     scene["updated_mesh"] = {
         "mesh": data["mesh"],

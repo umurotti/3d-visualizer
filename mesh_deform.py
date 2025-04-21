@@ -3,7 +3,6 @@ import numpy as np
 import trimesh
 from viewer_client import Online3DViewer
 from sklearn.neighbors import NearestNeighbors
-import asyncio
 
 # === Helper Functions ===
 def normalize(v):
@@ -36,7 +35,7 @@ def match_vertex_count(source, target):
         return trimesh.Trimesh(vertices=new_vertices, faces=[])
 
 # === Load target mesh (Stanford Bunny) ===
-bunny_path = "demo/bunny/reconstruction/bun_zipper_res3.ply"
+bunny_path = "/home/umurotti/remote_workspace/diffusion-prior/hold/code/visualizer/demo/bunny/reconstruction/bun_zipper_res3.ply"
 bunny = trimesh.load(bunny_path)
 bunny.apply_translation(-bunny.bounding_box.centroid)
 
@@ -63,23 +62,20 @@ import time
 
 start = time.time()
 
-steps = 1000
-tasks = []
+steps = 400
 for i in range(steps + 1):
     alpha = i / steps
     interpolated_vertices = (1 - alpha) * sphere.vertices + alpha * bunny.vertices
     interpolated_mesh = trimesh.Trimesh(vertices=interpolated_vertices, faces=bunny.faces)
+    time.sleep(0.1)  # Simulate processing time
 
     # Prepare async mesh update
-    tasks.append(viewer.async_add_mesh(interpolated_mesh, label=f"step_{i}"))
+    #start = time.time()
+    viewer.update_mesh(interpolated_mesh, label=f"step_{i}")
+    #end = time.time()
+    #print(f"Mesh update time for step {i}: {end - start:.6f} seconds")
 
 end = time.time()
 
 print(f"Elapsed time: {end - start:.6f} seconds")
 print("Deformation demo complete.")
-
-# Run all updates concurrently using an async function
-async def main():
-    await asyncio.gather(*tasks)
-    
-asyncio.run(main())

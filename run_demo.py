@@ -73,7 +73,7 @@ for i in range(num_orbits):
     viewer.add_object_axis(axis_pose, label=f"Obj {i+1}")
 
     # Send updated mesh
-    viewer.add_mesh(rotated, label=f"update_{i+1}")
+    viewer.update_mesh(rotated, label=f"update_{i+1}")
 
     time.sleep(1)
 

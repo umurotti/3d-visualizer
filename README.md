@@ -66,8 +66,8 @@ viewer.add_object_axis(pose_matrix, label="Object Frame")
 # Show global XYZ
 viewer.add_global_axes()
 
-# Add updated mesh
-viewer.add_mesh(mesh, label="epoch_1")
+# Update mesh
+viewer.update_mesh(mesh, label="epoch_1")
 ```
 ![Demo](assets/output.gif)
 
