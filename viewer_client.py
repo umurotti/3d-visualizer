@@ -18,6 +18,7 @@ class Online3DViewer:
                 self.host = f"http://localhost:{port}"
                 print(f"Using viewer host: {self.host}")
         self.timeout = timeout
+        self.clear_scene()
 
     def update_mesh(self, mesh, label="updated"):
         if not isinstance(mesh, trimesh.Trimesh):
