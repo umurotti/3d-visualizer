@@ -1,4 +1,4 @@
-import { createAxisLabel, updateLabelBar, updatePointCloudLabel, updateMeshLabel } from './utils.js';
+import { createAxisLabel} from './utils.js';
 import * as THREE from '/static/vendor/three/build/three.module.js';
 
 export const objectGroups = {
@@ -62,27 +62,16 @@ export function animate(renderer, scene, camera) {
   renderer.render(scene, camera);
 }
 
-export function setInitialPointCloud(scene, points) {
-  if (objectGroups.initialPointCloud) scene.remove(objectGroups.initialPointCloud);
-
-  const pointcloud = createPointCloudFromData(points, 0x888888);
-  scene.add(pointcloud);
-  objectGroups.initialPointCloud = pointcloud;
-}
-
-export function setUpdatedPointCloud(scene, points, label = "Updated Point Cloud") {
+export function addPointCloudToScene(scene, points, color) {
   if (objectGroups.updatedPointCloud) {
     scene.remove(objectGroups.updatedPointCloud);
     objectGroups.updatedPointCloud.geometry.dispose();
     objectGroups.updatedPointCloud.material.dispose();
   }
 
-  const pointcloud = createPointCloudFromData(points, 0x00ff00);
+  const pointcloud = createPointCloudFromData(points, color);
   scene.add(pointcloud);
   objectGroups.updatedPointCloud = pointcloud;
-
-  // Update the point cloud label
-  updatePointCloudLabel(label);
 }
 
 function createPointCloudFromData(entry, color) {
@@ -93,27 +82,16 @@ function createPointCloudFromData(entry, color) {
 }
 
 
-export function setInitialMesh(scene, meshData) {
-  if (objectGroups.initialMesh) scene.remove(objectGroups.initialMesh);
-
-  const mesh = createMeshFromData(meshData, 0x888888);
-  scene.add(mesh);
-  objectGroups.initialMesh = mesh;
-}
-
-export function setUpdatedMesh(scene, meshData, label = "Updated Mesh") {
+export function addMeshToScene(scene, meshData, color) {
   if (objectGroups.updatedMesh) {
     scene.remove(objectGroups.updatedMesh);
     objectGroups.updatedMesh.geometry.dispose();
     objectGroups.updatedMesh.material.dispose();
   }
 
-  const mesh = createMeshFromData(meshData, 0x00ff00);
+  const mesh = createMeshFromData(meshData, color);
   scene.add(mesh);
   objectGroups.updatedMesh = mesh;
-
-  // Update the mesh label
-  updateMeshLabel(label);
 }
 
 function createMeshFromData(entry, color) {
@@ -226,11 +204,13 @@ function drawCameraAxes(origin, poseMatrix, length = 0.1) {
 }
 
 
-export function updateFrustums(scene, frustums) {
+export function updateFrustums(scene, frustums, maxStep = Infinity) {
   objectGroups.frustums.forEach(obj => scene.remove(obj));
   objectGroups.frustums = [];
 
   frustums.forEach(entry => {
+    if (entry.step !== undefined && entry.step > maxStep) return;  // <-- SKIP if too big
+
     let frustumPoints = getFrustumPointsFromK(entry.intrinsics, entry.width, entry.height, entry.near, entry.far);
     frustumPoints = applyPoseToPoints(frustumPoints, arrayToMatrix4(entry.pose));
     const frustum = createFrustumLines(frustumPoints, entry.color);

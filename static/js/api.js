@@ -1,74 +1,49 @@
 import {
-  setInitialPointCloud,
-  setUpdatedPointCloud,
   updateFrustums,
   updateAxes,
-  setInitialMesh,
-  setUpdatedMesh,
-  addGlobalAxes,
-  objectGroups // Import objectGroups
+  addPointCloudToScene,
+  addMeshToScene,
+  addGlobalAxes
 } from './scene.js';
 
+import { currentSliderValue, updateSliderMax} from './main.js';
+
 import { applyVisibility } from './scene.js';
-import { updatePointCloudLabel, updateMeshLabel } from './utils.js';
+import { updateStepInput } from './utils.js';
 
 export function fetchSceneData(scene) {
-  fetch('/scene')
+  // Now you can access the latest slider value anytime
+  const step = currentSliderValue;
+  let url = '/scene';
+  if (step !== null) {
+    url += `?step=${step}`;
+  }
+  fetch(url)
     .then(res => res.json())
     .then(data => {
       // Handle frustums
-      updateFrustums(scene, data.frustums || []);
+      updateFrustums(scene, data.frustums || [], step);
 
       // Handle axes
       updateAxes(scene, data.axes || []);
 
-      // Handle initial mesh
-      if (data.initial_mesh) {
-        setInitialMesh(scene, data.initial_mesh.mesh);
-      } else if (objectGroups.initialMesh) {
-        scene.remove(objectGroups.initialMesh);
-        objectGroups.initialMesh.geometry.dispose();
-        objectGroups.initialMesh.material.dispose();
-        objectGroups.initialMesh = null;
-      }
+      updateSliderMax(data.total_steps); // Update the slider max value
 
       // Handle updated mesh
-      if (data.updated_mesh) {
-        setUpdatedMesh(scene, data.updated_mesh.mesh, data.updated_mesh.label || "Updated Mesh");
-      } else if (objectGroups.updatedMesh) {
-        scene.remove(objectGroups.updatedMesh);
-        objectGroups.updatedMesh.geometry.dispose();
-        objectGroups.updatedMesh.material.dispose();
-        objectGroups.updatedMesh = null;
-        updateMeshLabel("None"); // Reset the mesh label
-      }
-
-      // Handle initial point cloud
-      if (data.initial_point_cloud) {
-        setInitialPointCloud(scene, data.initial_point_cloud.points);
-      } else if (objectGroups.initialPointCloud) {
-        scene.remove(objectGroups.initialPointCloud);
-        objectGroups.initialPointCloud.geometry.dispose();
-        objectGroups.initialPointCloud.material.dispose();
-        objectGroups.initialPointCloud = null;
+      if (data.meshes && data.meshes.length > 0) {
+        addMeshToScene(scene, data.meshes[0].mesh, data.meshes[0].color);
       }
 
       // Handle updated point cloud
-      if (data.updated_point_cloud) {
-        setUpdatedPointCloud(scene, data.updated_point_cloud.points, data.updated_point_cloud.label || "Updated Point Cloud");
-      } else if (objectGroups.updatedPointCloud) {
-        scene.remove(objectGroups.updatedPointCloud);
-        objectGroups.updatedPointCloud.geometry.dispose();
-        objectGroups.updatedPointCloud.material.dispose();
-        objectGroups.updatedPointCloud = null;
-        updatePointCloudLabel("None"); // Reset the point cloud label
+      if (data.point_clouds && data.point_clouds.length > 0) {
+        addPointCloudToScene(scene, data.point_clouds[0].points, data.point_clouds[0].color);
       }
 
       // Handle global axes
       if (data.add_global_axes) {
         addGlobalAxes(scene, true);
       }
-
+      updateStepInput(step);
       applyVisibility(); // Re-apply visibility toggles
     })
     .catch(console.warn);

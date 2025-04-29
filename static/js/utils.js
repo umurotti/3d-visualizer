@@ -1,4 +1,5 @@
 import * as THREE from '/static/vendor/three/build/three.module.js';
+import { isTypingStep } from './main.js';
 
 
 export function createAxisLabel(text, color = 'white') {
@@ -26,16 +27,14 @@ export function updateLabelBar(text) {
   }
 }
 
-export function updatePointCloudLabel(text) {
-  const pointCloudLabel = document.getElementById('pointcloud-label');
-  if (pointCloudLabel) {
-    pointCloudLabel.textContent = `Point Cloud: ${text}`;
+export function updateStepInput(step) {
+  if (isTypingStep) {
+    // Don't overwrite while user is typing
+    return;
+  }
+  const stepInput = document.getElementById('step-input');
+  if (stepInput) {
+    stepInput.value = step;
   }
 }
 
-export function updateMeshLabel(text) {
-  const meshLabel = document.getElementById('mesh-label');
-  if (meshLabel) {
-    meshLabel.textContent = `Mesh: ${text}`;
-  }
-}

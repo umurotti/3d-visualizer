@@ -4,7 +4,7 @@ import requests
 import trimesh
 
 class Online3DViewer:
-    def __init__(self, host=None, timeout=1):
+    def __init__(self, host=None, timeout=50):
         if host is not None:
             self.host = host
         else:
@@ -18,9 +18,10 @@ class Online3DViewer:
                 self.host = f"http://localhost:{port}"
                 print(f"Using viewer host: {self.host}")
         self.timeout = timeout
+        self.step = 0
         self.clear_scene()
 
-    def update_mesh(self, mesh, label="updated"):
+    def add_mesh(self, mesh, commit=True, color="#00ff00"):
         if not isinstance(mesh, trimesh.Trimesh):
             raise ValueError("Expected a trimesh.Trimesh object")
 
@@ -30,24 +31,30 @@ class Online3DViewer:
         }
 
         try:
-            requests.post(f"{self.host}/update_mesh", json={
+            requests.post(f"{self.host}/add_mesh", json={
                 "mesh": mesh_data,
-                "label": label
+                "color": color,
+                "step": self.step
             }, timeout=self.timeout)
+            if commit:
+                self.step += 1
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add mesh: {e}")
             
-    def update_point_cloud(self, pointcloud, label="updated"):
+    def add_point_cloud(self, pointcloud, commit=True, color="#00ff00"):
         if isinstance(pointcloud, torch.Tensor):
             pointcloud = pointcloud.detach().cpu().numpy()
         elif not isinstance(pointcloud, np.ndarray):
             raise ValueError("Expected a numpy array or torch.Tensor")
 
         try:
-            requests.post(f"{self.host}/update_point_cloud", json={
+            requests.post(f"{self.host}/add_point_cloud", json={
                 "points": pointcloud.tolist(),
-                "label": label
+                "color": color,
+                "step": self.step
             }, timeout=self.timeout)
+            if commit:
+                self.step += 1
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add point cloud: {e}")
     
@@ -74,7 +81,7 @@ class Online3DViewer:
                                                     [500,   0, 320],
                                                     [  0, 500, 240],
                                                     [  0,   0,   1]
-                                                    ], dtype=np.float32), image_resolution=(640, 480), near=0.0, far=0.1, color="#00ff00", visualize_orientation=False):
+                                                    ], dtype=np.float32), image_resolution=(640, 480), near=0.0, far=0.1, color="#00ff00", visualize_orientation=False, commit=True):
         # Check if pose is a 4x4 matrix
         if isinstance(pose, torch.Tensor):
             pose = pose.detach().cpu().numpy()
@@ -105,14 +112,17 @@ class Online3DViewer:
                 "near": near,
                 "far": far,
                 "color": color,
-                "visualize_orientation": visualize_orientation
+                "visualize_orientation": visualize_orientation,
+                "step": self.step
                 }
         try:
             requests.post(f"{self.host}/add_frustum", json=data, timeout=1)
+            if commit:
+                self.step += 1
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add frustum: {e}")
 
-    def add_object_axis(self, pose=np.eye(4), label="Object"):
+    def add_object_axis(self, pose=np.eye(4), commit=True):
         if isinstance(pose, torch.Tensor):
             pose = pose.detach().cpu().numpy()
         elif not isinstance(pose, np.ndarray):
@@ -121,8 +131,10 @@ class Online3DViewer:
         try:
             requests.post(f"{self.host}/add_object_axis", json={
                 "pose": pose.tolist(),
-                "label": label
+                "step": self.step
             }, timeout=self.timeout)
+            if commit:
+                self.step += 1
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add object axis: {e}")
 
@@ -135,6 +147,7 @@ class Online3DViewer:
     def clear_scene(self):
         """Clear all scene elements: point cloud, frustums, axes, and meshes."""
         try:
+            self.step = 0
             requests.post(f"{self.host}/clear_scene", timeout=1)
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not clear scene: {e}")

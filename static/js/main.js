@@ -53,3 +53,41 @@ document.addEventListener('DOMContentLoaded', () => {
     applyVisibility();
   });
 });
+
+// Export slider value and update function
+export let currentSliderValue = 0;
+export let globalScene = null;
+
+export function setGlobalScene(scene) {
+  globalScene = scene;
+}
+
+const timeSlider = document.getElementById('time-slider');
+const stepInput = document.getElementById('step-input');
+export let isTypingStep = false;
+
+export function updateSliderMax(newMax) {
+  timeSlider.max = newMax;
+}
+
+timeSlider.addEventListener('input', (event) => {
+  currentSliderValue = parseInt(event.target.value, 10);
+});
+
+stepInput.addEventListener('focus', () => {
+  isTypingStep = true;  // User started typing
+});
+
+stepInput.addEventListener('blur', () => {
+  isTypingStep = false; // User finished typing
+});
+
+stepInput.addEventListener('change', () => {
+  let newStep = parseInt(stepInput.value);
+  if (!isNaN(newStep)) {
+    newStep = Math.max(0, Math.min(newStep, parseInt(timeSlider.max)));
+    timeSlider.value = newStep;
+    currentSliderValue = newStep;
+    stepInput.value = newStep;
+  }
+});

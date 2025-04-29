@@ -6,13 +6,12 @@ CORS(app)
 
 # Shared scene state
 scene = {
-    "initial_point_cloud": None,
-    "updated_point_cloud": None,
+    "point_clouds": [],           # Only used for the initial point clou
     "frustums": [],
     "axes": [],
-    "initial_mesh": None,           # Only used for the initial mesh
-    "updated_mesh": None,   # Last updated mesh (will replace the previous)
-    "add_global_axes": False
+    "meshes": [],
+    "add_global_axes": False,
+    "total_steps": 0
 }
 
 @app.route("/")
@@ -37,54 +36,62 @@ def load_scene():
 
 @app.route("/scene", methods=["GET"])
 def get_scene():
-    return jsonify({
-        "initial_point_cloud": scene["initial_point_cloud"],
-        "updated_point_cloud": scene["updated_point_cloud"],
-        "frustums": scene["frustums"],
-        "axes": scene["axes"],
-        "initial_mesh": scene["initial_mesh"],
-        "updated_mesh": scene["updated_mesh"],
-        "add_global_axes": scene["add_global_axes"]
-    })
+    step = request.args.get('step', default=None, type=int)  # Get 'index' from URL
+    if step is not None:
+        # Return only the specific indexed elements
+        return jsonify({
+            "point_clouds": [scene["point_clouds"][step]] if scene["point_clouds"] else [],
+            "frustums": scene["frustums"],
+            "axes": scene["axes"],
+            "meshes": [scene["meshes"][step]] if scene["meshes"] else [],
+            "add_global_axes": scene["add_global_axes"],
+            "total_steps": (len(scene["point_clouds"]) - 1) if scene["point_clouds"] else 0
+        })
+    else:
+        # If no index is provided, return everything
+        return jsonify({
+            "point_clouds": scene["point_clouds"],
+            "frustums": scene["frustums"],
+            "axes": scene["axes"],
+            "meshes": scene["meshes"],
+            "add_global_axes": scene["add_global_axes"],
+            "total_steps": scene["total_steps"]
+        })
 
-@app.route("/update_mesh", methods=["POST"])
-def update_mesh():
+@app.route("/add_mesh", methods=["POST"])
+def add_mesh():
     data = request.json
-    scene["updated_mesh"] = {
+    scene["meshes"].append({
         "mesh": data["mesh"],
-        "label": data.get("label", "updated")
-    }
+        "color": data["color"],
+        "step": data["step"]
+    })
     return "Updated mesh set", 200
 
-@app.route("/update_point_cloud", methods=["POST"])
-def update_point_cloud():
+@app.route("/add_point_cloud", methods=["POST"])
+def add_point_cloud():
     data = request.json
-    scene["updated_point_cloud"] = {
+    scene["point_clouds"].append({
         "points": data["points"],
-        "label": data.get("label", "updated")
-    }
+        "color": data["color"],
+        "step": data["step"]
+    })
     return "Updated point cloud set", 200
 
 @app.route("/add_frustum", methods=["POST"])
 def add_frustum():
     data = request.json
-    pose = data["pose"]
-    intrinsic = data["intrinsic"]
-    width = data["width"]
-    height = data["height"]
-    near = data["near"]
-    far = data["far"]
-    color = data["color"]
-    visualize_orientation = data["visualize_orientation"]
+    
     scene["frustums"].append({
-        "pose": pose,
-        "intrinsics": intrinsic,
-        "width": width,
-        "height": height,
-        "near": near,
-        "far": far,
-        "color": color,
-        "visualize_orientation": visualize_orientation,
+        "pose":                     data["pose"],
+        "intrinsics":               data["intrinsic"],
+        "width":                    data["width"],
+        "height":                   data["height"],
+        "near":                     data["near"],
+        "far":                      data["far"],
+        "color":                    data["color"],
+        "visualize_orientation":    data["visualize_orientation"],
+        "step":                     data["step"]
         })
     return "Frustum added", 200
 
@@ -93,7 +100,7 @@ def add_object_axis():
     data = request.json
     scene["axes"].append({
         "pose": data["pose"],
-        "label": data.get("label", "Object")
+        "step": data["step"]
     })
     return "Object axis added", 200
 
@@ -104,17 +111,11 @@ def add_global_axes():
 
 @app.route("/clear_scene", methods=["POST"])
 def clear_scene():
-    scene["initial_point_cloud"] = None
-    scene["updated_point_cloud"] = None
+    scene["point_clouds"] = []
     scene["frustums"] = []
     scene["axes"] = []
-    scene["initial_mesh"] = None
-    scene["updated_mesh"] = None
+    scene["meshes"] = []
     scene["add_global_axes"] = False
-
-    # Reset labels
-    scene["updated_point_cloud_label"] = "None"
-    scene["updated_mesh_label"] = "None"
 
     return "Scene cleared", 200
 
