@@ -1,5 +1,7 @@
+import json
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -18,21 +20,33 @@ scene = {
 def index():
     return render_template("viewer.html")  # Loads modular viewer (main.js)
 
+@app.route("/save_scene", methods=["POST"])
+def save_scene():
+    data = request.json
+    save_path = data.get("save_path", "saved_scene.json")  # default fallback
+
+    try:
+        with open(save_path, "w") as f:
+            json.dump(scene, f)
+        return f"Scene saved to {save_path}", 200
+    except Exception as e:
+        return f"Error saving scene: {str(e)}", 500
+
 @app.route("/load_scene", methods=["POST"])
 def load_scene():
     data = request.json
-    scene["initial_point_cloud"] = {
-                                    "points": data.get("points", []),
-                                    "label": "initial"
-                                    }
-    scene["initial_mesh"] = {
-                            "mesh": data.get("mesh", []),
-                            "label": "initial"
-                            }
-        
-    scene["add_global_axes"] = True
+    load_path = data.get("load_path", "saved_scene.json")  # default fallback
 
-    return "Scene loaded", 200
+    if not os.path.exists(load_path):
+        return f"No scene found at {load_path}", 404
+
+    try:
+        with open(load_path, "r") as f:
+            saved_scene = json.load(f)
+            scene.update(saved_scene)
+        return f"Scene loaded from {load_path}", 200
+    except Exception as e:
+        return f"Error loading scene: {str(e)}", 500
 
 @app.route("/scene", methods=["GET"])
 def get_scene():

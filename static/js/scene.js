@@ -224,11 +224,13 @@ export function updateFrustums(scene, frustums, maxStep = Infinity) {
   });
 }
 
-export function updateAxes(scene, axes) {
+export function updateAxes(scene, axes, maxStep = Infinity) {
   objectGroups.axes.forEach(obj => scene.remove(obj));
   objectGroups.axes = [];
 
-  axes.forEach(({ pose, label }) => {
+  axes.forEach(({ pose, label, step }) => {
+    if (step !== undefined && step > maxStep) return;  // <-- SKIP if too big
+
     const m = pose.flat();
     const rot = new THREE.Matrix4().set(m[0], m[1], m[2], 0, m[4], m[5], m[6], 0, m[8], m[9], m[10], 0, 0, 0, 0, 1);
     const pos = new THREE.Vector3(m[3], m[7], m[11]);
@@ -239,12 +241,13 @@ export function updateAxes(scene, axes) {
     scene.add(helper);
 
     const labelSprite = createAxisLabel(label);
-    labelSprite.position.copy(pos.clone().add(new THREE.Vector3(0, 0.4, 0))); // Adjusted position to avoid clipping
+    labelSprite.position.copy(pos.clone().add(new THREE.Vector3(0, 0.4, 0)));
     scene.add(labelSprite);
 
     objectGroups.axes.push(helper, labelSprite);
   });
 }
+
 
 let globalAxesDrawn = false;
 

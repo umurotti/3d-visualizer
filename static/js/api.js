@@ -25,7 +25,7 @@ export function fetchSceneData(scene) {
       updateFrustums(scene, data.frustums || [], step);
 
       // Handle axes
-      updateAxes(scene, data.axes || []);
+      updateAxes(scene, data.axes || [], step);
 
       updateSliderMax(data.total_steps); // Update the slider max value
 

@@ -57,23 +57,22 @@ class Online3DViewer:
                 self.step += 1
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add point cloud: {e}")
-    
-    def load_scene(self, mesh=None, pointcloud=None):
-        payload = {}
-
-        if pointcloud is not None:
-            if isinstance(pointcloud, torch.Tensor):
-                pointcloud = pointcloud.detach().cpu().numpy()
-            payload["points"] = pointcloud.tolist()
-
-        if mesh is not None and isinstance(mesh, trimesh.Trimesh):
-            payload["mesh"] = {
-                "vertices": mesh.vertices.tolist(),
-                "faces": mesh.faces.tolist()
-            }
-
+            
+    def save_scene(self, save_path="saved_scene.json"):
+        data = {
+            "save_path": save_path
+        }
         try:
-            requests.post(f"{self.host}/load_scene", json=payload, timeout=self.timeout)
+            requests.post(f"{self.host}/save_scene", json=data, timeout=self.timeout)
+        except requests.exceptions.RequestException as e:
+            print(f"[WARN] Could not save scene: {e}")
+    
+    def load_scene(self, load_path="saved_scene.json"):
+        data = {
+            "load_path": load_path
+        }
+        try:
+            requests.post(f"{self.host}/load_scene", json=data, timeout=self.timeout)
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not load scene: {e}")
 
