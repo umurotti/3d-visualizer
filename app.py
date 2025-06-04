@@ -48,28 +48,35 @@ def load_scene():
     except Exception as e:
         return f"Error loading scene: {str(e)}", 500
 
+def get_max_step():
+    max_step = 0
+    for key in ["point_clouds", "frustums", "axes", "meshes"]:
+        for obj in scene.get(key, []):
+            if isinstance(obj, dict) and "step" in obj:
+                max_step = max(max_step, obj["step"])
+    return max_step
+
 @app.route("/scene", methods=["GET"])
 def get_scene():
-    step = request.args.get('step', default=None, type=int)  # Get 'index' from URL
+    step = request.args.get('step', default=None, type=int)
+    total_steps = get_max_step()
     if step is not None:
-        # Return only the specific indexed elements
         return jsonify({
-            "point_clouds": [scene["point_clouds"][step]] if scene["point_clouds"] else [],
-            "frustums": scene["frustums"],
-            "axes": scene["axes"],
-            "meshes": [scene["meshes"][step]] if scene["meshes"] else [],
+            "point_clouds": [pc for pc in scene["point_clouds"] if pc.get("step") == step],
+            "frustums": [f for f in scene["frustums"] if f.get("step") == step],
+            "axes": [a for a in scene["axes"] if a.get("step") == step],
+            "meshes": [m for m in scene["meshes"] if m.get("step") == step],
             "add_global_axes": scene["add_global_axes"],
-            "total_steps": (len(scene["point_clouds"]) - 1) if scene["point_clouds"] else 0
+            "total_steps": total_steps
         })
     else:
-        # If no index is provided, return everything
         return jsonify({
             "point_clouds": scene["point_clouds"],
             "frustums": scene["frustums"],
             "axes": scene["axes"],
             "meshes": scene["meshes"],
             "add_global_axes": scene["add_global_axes"],
-            "total_steps": scene["total_steps"]
+            "total_steps": total_steps
         })
 
 @app.route("/add_mesh", methods=["POST"])

@@ -1,9 +1,10 @@
 import {
   updateFrustums,
   updateAxes,
-  addPointCloudToScene,
+  addPointCloudsToScene, // <-- update import
   addMeshToScene,
-  addGlobalAxes
+  addGlobalAxes,
+  objectGroups
 } from './scene.js';
 
 import { currentSliderValue, updateSliderMax} from './main.js';
@@ -21,22 +22,37 @@ export function fetchSceneData(scene) {
   fetch(url)
     .then(res => res.json())
     .then(data => {
+      updateSliderMax(data.total_steps); // Update the slider max value
       // Handle frustums
       updateFrustums(scene, data.frustums || [], step);
 
       // Handle axes
       updateAxes(scene, data.axes || [], step);
 
-      updateSliderMax(data.total_steps); // Update the slider max value
-
       // Handle updated mesh
       if (data.meshes && data.meshes.length > 0) {
         addMeshToScene(scene, data.meshes[0].mesh, data.meshes[0].color);
       }
 
-      // Handle updated point cloud
+      // Handle updated point clouds
       if (data.point_clouds && data.point_clouds.length > 0) {
-        addPointCloudToScene(scene, data.point_clouds[0].points, data.point_clouds[0].color);
+        addPointCloudsToScene(scene, data.point_clouds);
+      } else {
+        // Clear the point cloud if none for this step
+        if (objectGroups.updatedPointCloud) {
+          if (Array.isArray(objectGroups.updatedPointCloud)) {
+            objectGroups.updatedPointCloud.forEach(pc => {
+              scene.remove(pc);
+              pc.geometry.dispose();
+              pc.material.dispose();
+            });
+          } else {
+            scene.remove(objectGroups.updatedPointCloud);
+            objectGroups.updatedPointCloud.geometry.dispose();
+            objectGroups.updatedPointCloud.material.dispose();
+          }
+          objectGroups.updatedPointCloud = null;
+        }
       }
 
       // Handle global axes

@@ -74,6 +74,32 @@ export function addPointCloudToScene(scene, points, color) {
   objectGroups.updatedPointCloud = pointcloud;
 }
 
+export function addPointCloudsToScene(scene, pointClouds) {
+  // Remove previous point clouds
+  if (objectGroups.updatedPointCloud) {
+    if (Array.isArray(objectGroups.updatedPointCloud)) {
+      objectGroups.updatedPointCloud.forEach(pc => {
+        scene.remove(pc);
+        pc.geometry.dispose();
+        pc.material.dispose();
+      });
+    } else {
+      scene.remove(objectGroups.updatedPointCloud);
+      objectGroups.updatedPointCloud.geometry.dispose();
+      objectGroups.updatedPointCloud.material.dispose();
+    }
+    objectGroups.updatedPointCloud = null;
+  }
+
+  // Add all new point clouds
+  objectGroups.updatedPointCloud = [];
+  for (const pc of pointClouds) {
+    const pointcloud = createPointCloudFromData(pc.points, pc.color);
+    scene.add(pointcloud);
+    objectGroups.updatedPointCloud.push(pointcloud);
+  }
+}
+
 function createPointCloudFromData(entry, color) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(entry.flat()), 3));
@@ -224,11 +250,12 @@ export function updateFrustums(scene, frustums, maxStep = Infinity) {
   });
 }
 
-export function updateAxes(scene, axes, maxStep = Infinity) {
+export function updateAxes(scene, axes, currentStep, maxStep = Infinity) {
   objectGroups.axes.forEach(obj => scene.remove(obj));
   objectGroups.axes = [];
 
   axes.forEach(({ pose, label, step }) => {
+    if (step !== currentStep) return;  // <-- SKIP if not the current step
     if (step !== undefined && step > maxStep) return;  // <-- SKIP if too big
 
     const m = pose.flat();
