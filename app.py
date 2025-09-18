@@ -121,7 +121,8 @@ def add_object_axis():
     data = request.json
     scene["axes"].append({
         "pose": data["pose"],
-        "step": data["step"]
+        "step": data["step"],
+        "label": data["label"]
     })
     return "Object axis added", 200
 

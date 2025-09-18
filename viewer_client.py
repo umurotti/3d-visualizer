@@ -121,7 +121,7 @@ class Online3DViewer:
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add frustum: {e}")
 
-    def add_object_axis(self, pose=np.eye(4), commit=True):
+    def add_object_axis(self, pose=np.eye(4), label=None, commit=True):
         if isinstance(pose, torch.Tensor):
             pose = pose.detach().cpu().numpy()
         elif not isinstance(pose, np.ndarray):
@@ -130,7 +130,8 @@ class Online3DViewer:
         try:
             requests.post(f"{self.host}/add_object_axis", json={
                 "pose": pose.tolist(),
-                "step": self.step
+                "step": self.step,
+                "label": label
             }, timeout=self.timeout)
             if commit:
                 self.step += 1
