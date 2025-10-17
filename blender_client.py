@@ -105,6 +105,10 @@ class BlenderSceneBridge:
             self._timer_handle = self._process_queue
             bpy.app.timers.register(self._timer_handle, first_interval=self._TIMER_INTERVAL)
 
+        scene = bpy.context.scene
+        if scene is not None and scene.frame_start != 0:
+            scene.frame_start = 0
+
         print(f"[Visualizer3D] Started polling {self.host} every {interval}s")
 
     def stop_polling(self):
@@ -190,13 +194,18 @@ class BlenderSceneBridge:
         cache.add(step)
 
         frames = []
-        frame_before = step - 1
-        frames.append((frame_before, True))
+        frame_before = max(step - 1, 0)
+        if frame_before < step:
+            frames.append((frame_before, True))
         frames.append((step, False))
         if not hold_visible:
             frames.append((step + 1, True))
 
+        seen = set()
         for frame, hidden in frames:
+            if frame in seen:
+                continue
+            seen.add(frame)
             obj.hide_viewport = hidden
             obj.hide_render = hidden
             obj.keyframe_insert(data_path="hide_viewport", frame=frame)

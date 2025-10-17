@@ -34,48 +34,75 @@ if pointcloud.shape[0] > 2000:
     idx = np.random.choice(pointcloud.shape[0], 2000, replace=False)
     pointcloud = pointcloud[idx]
 
+highlight_count = min(400, pointcloud.shape[0])
+highlight_idx = np.linspace(0, pointcloud.shape[0] - 1, highlight_count, dtype=int)
+highlight_base = np.hstack([pointcloud[highlight_idx], np.ones((highlight_count, 1))])
+
 # Seed frame 0 with the reference mesh, origin axis, and point cloud
-viewer.add_mesh(centered, label="bunny_reference", commit=False)
-viewer.add_object_axis(np.eye(4), label="origin", commit=False)
-viewer.add_point_cloud(pointcloud, color="#66ccff")
+viewer.add_mesh(centered, label="bunny_mesh", color="#f8b400", commit=False)
+viewer.add_object_axis(np.eye(4), label="bunny_axis", commit=False)
+viewer.add_point_cloud(pointcloud, color="#66ccff", label="bunny_points", commit=False)
 viewer.add_global_axes()
 
 # === Known view (red frustum) ===
-known_pose = look_at(np.array([0.5, 0.5, 0.5]), initial_center)
-viewer.add_frustum(known_pose, color="#ff0000", visualize_orientation=True)
+known_pose = look_at(np.array([0.6, 0.6, 0.6]), initial_center)
+viewer.add_frustum(known_pose, color="#ff5555", visualize_orientation=True)
 
-# === Simulate orbiting updated meshes ===
-print("Starting orbit demo...")
+# === Advanced orbit demo ===
+print("Starting orbit demo with animated mesh, axes, point clouds, and frustums...")
 
-radius = 1
-num_orbits = 25
+radius = 1.1
+num_steps = 36
+spin_angles = np.linspace(0.0, 2 * np.pi, num_steps, endpoint=False)
 
-for i in range(num_orbits):
-    print(f"[Demo] Iteration {i + 1}")
-    
-    theta = 2 * np.pi * i / num_orbits
-    updated_pos = np.array([
+for step_idx, theta in enumerate(spin_angles, start=1):
+    scale_factor = 1.0 + 0.12 * np.sin(theta * 3.0)
+    tilt_angle = 0.35 * np.sin(theta * 2.0)
+    orbit_height = 0.2 * np.sin(theta * 1.5)
+    orbit_position = np.array([
         radius * np.cos(theta),
-        0.0,
+        orbit_height,
         radius * np.sin(theta)
     ])
 
-    # Move the mesh to new position
-    rotated = centered.copy()
-    rotated.apply_transform(trimesh.transformations.rotation_matrix(angle=-theta, direction=np.array([0, 1, 0])))
-    rotated.apply_translation(updated_pos)
+    scale_matrix = trimesh.transformations.scale_matrix(scale_factor)
+    tilt_matrix = trimesh.transformations.rotation_matrix(tilt_angle, [1, 0, 0])
+    spin_matrix = trimesh.transformations.rotation_matrix(theta, [0, 1, 0])
+    translation_matrix = trimesh.transformations.translation_matrix(orbit_position)
 
-    # Add orbiting frustum / mesh / axis for this step
-    cam_pos = updated_pos + np.array([0.2, 0.2, 0.2])  # offset from object
-    cam_pose = look_at(cam_pos, updated_pos)
-    rainbow = "#{:02x}{:02x}{:02x}".format(*[int(255 * x) for x in colorsys.hsv_to_rgb(i / num_orbits, 1, 1)])
+    mesh_transform = trimesh.transformations.concatenate_matrices(
+        translation_matrix,
+        spin_matrix,
+        tilt_matrix,
+        scale_matrix
+    )
 
-    viewer.add_mesh(rotated, commit=False)
-    axis_pose = np.eye(4)
-    axis_pose[:3, 3] = updated_pos
-    viewer.add_object_axis(axis_pose, label=f"orbit_axis_{i+1}", commit=False)
-    viewer.add_frustum(cam_pose, color=rainbow, visualize_orientation=True)
+    dynamic_mesh = centered.copy()
+    dynamic_mesh.apply_transform(mesh_transform)
+    viewer.add_mesh(dynamic_mesh, label="bunny_mesh", color="#f8b400", commit=False)
 
-    time.sleep(0.5)
+    ax_pose = np.eye(4)
+    ax_pose[:3, :3] = (spin_matrix @ tilt_matrix)[:3, :3]
+    ax_pose[:3, 3] = orbit_position
+    viewer.add_object_axis(ax_pose, label="bunny_axis", commit=False)
 
-print("Done.")
+    highlight_points = (highlight_base @ mesh_transform.T)[:, :3]
+    viewer.add_point_cloud(highlight_points, color="#ffcc00", label="bunny_highlight", commit=False)
+
+    cam_offset = np.array([
+        0.8 * np.cos(theta + np.pi / 3),
+        0.35 + 0.15 * np.cos(theta * 1.3),
+        0.8 * np.sin(theta + np.pi / 3)
+    ])
+    chase_pose = look_at(orbit_position + cam_offset, orbit_position)
+    hue = (step_idx % num_steps) / num_steps
+    rainbow = "#{:02x}{:02x}{:02x}".format(*[int(255 * c) for c in colorsys.hsv_to_rgb(hue, 0.9, 1.0)])
+    viewer.add_frustum(chase_pose, color=rainbow, visualize_orientation=True, commit=False)
+
+    top_pose = look_at(orbit_position + np.array([0.0, 1.6, 0.0]), orbit_position)
+    viewer.add_frustum(top_pose, color="#44aaff", visualize_orientation=False)
+
+    print(f"[Demo] Step {step_idx}/{num_steps} -> radius={radius:.2f}, scale={scale_factor:.2f}")
+    time.sleep(0.15)
+
+print(f"Demo complete. Scrub the Blender timeline (frames 0..{num_steps}) to revisit each step.")

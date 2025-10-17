@@ -82,10 +82,10 @@ You can run a full demonstration using real mesh data (Stanford Bunny) to showca
 
 This demo:
 - Loads the Stanford Bunny mesh
-- Centers it at the origin
-- Iteratively updates the mesh position and orientation along a circular orbit
-- Visualizes each iteration with a new green frustum and labeled object axis
-- Adds a red frustum for a known view
+- Centers it at the origin for frame 0 alongside a reference point cloud
+- Animates 36 steps of rotation, tilt, uniform scaling, and orbital translation
+- Streams a chase camera frustum plus an overhead frustum for each step
+- Keyframes mesh, axes, and highlight point clouds so Blender frames match remote steps
 
 ### 🔁 Iterative Mesh Update Demo
 
@@ -129,7 +129,7 @@ If you prefer to inspect the remote scene inside Blender instead of the browser,
 2. In Blender's Scripting workspace run:
 
 ```python
-import blender_client
+from visualizer3d import blender_client
 bridge = blender_client.start(host='http://localhost:5000', interval=1.0)
 ```
 
