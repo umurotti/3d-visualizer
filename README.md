@@ -129,7 +129,7 @@ If you prefer to inspect the remote scene inside Blender instead of the browser,
 2. In Blender's Scripting workspace run:
 
 ```python
-from visualizer3d import blender_client
+import blender_client
 bridge = blender_client.start(host='http://localhost:5000', interval=1.0)
 ```
 

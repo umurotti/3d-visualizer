@@ -45,18 +45,21 @@ class Online3DViewer:
         except requests.exceptions.RequestException as e:
             print(f"[WARN] Could not add mesh: {e}")
             
-    def add_point_cloud(self, pointcloud, commit=True, color="#00ff00"):
+    def add_point_cloud(self, pointcloud, commit=True, color="#00ff00", label=None):
         if isinstance(pointcloud, torch.Tensor):
             pointcloud = pointcloud.detach().cpu().numpy()
         elif not isinstance(pointcloud, np.ndarray):
             raise ValueError("Expected a numpy array or torch.Tensor")
 
         try:
-            requests.post(f"{self.host}/add_point_cloud", json={
+            payload = {
                 "points": pointcloud.tolist(),
                 "color": color,
                 "step": self.step
-            }, timeout=self.timeout)
+            }
+            if label is not None:
+                payload["label"] = label
+            requests.post(f"{self.host}/add_point_cloud", json=payload, timeout=self.timeout)
             if commit:
                 self.step += 1
         except requests.exceptions.RequestException as e:

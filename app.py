@@ -96,7 +96,8 @@ def add_point_cloud():
     scene["point_clouds"].append({
         "points": data["points"],
         "color": data["color"],
-        "step": data["step"]
+        "step": data["step"],
+        "label": data.get("label")
     })
     return "Updated point cloud set", 200
 
