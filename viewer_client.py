@@ -21,7 +21,7 @@ class Online3DViewer:
         self.step = 0
         self.clear_scene()
 
-    def add_mesh(self, mesh, commit=True, color="#00ff00"):
+    def add_mesh(self, mesh, commit=True, color="#00ff00", label=None):
         if not isinstance(mesh, trimesh.Trimesh):
             raise ValueError("Expected a trimesh.Trimesh object")
 
@@ -30,12 +30,16 @@ class Online3DViewer:
             "faces": mesh.faces.tolist()
         }
 
+        payload = {
+            "mesh": mesh_data,
+            "color": color,
+            "step": self.step
+        }
+        if label is not None:
+            payload["label"] = label
+
         try:
-            requests.post(f"{self.host}/add_mesh", json={
-                "mesh": mesh_data,
-                "color": color,
-                "step": self.step
-            }, timeout=self.timeout)
+            requests.post(f"{self.host}/add_mesh", json=payload, timeout=self.timeout)
             if commit:
                 self.step += 1
         except requests.exceptions.RequestException as e:

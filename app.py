@@ -85,7 +85,8 @@ def add_mesh():
     scene["meshes"].append({
         "mesh": data["mesh"],
         "color": data["color"],
-        "step": data["step"]
+        "step": data["step"],
+        "label": data.get("label")
     })
     return "Updated mesh set", 200
 
@@ -122,7 +123,7 @@ def add_object_axis():
     scene["axes"].append({
         "pose": data["pose"],
         "step": data["step"],
-        "label": data["label"]
+        "label": data.get("label")
     })
     return "Object axis added", 200
 

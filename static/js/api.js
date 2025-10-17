@@ -2,7 +2,7 @@ import {
   updateFrustums,
   updateAxes,
   addPointCloudsToScene, // <-- update import
-  addMeshToScene,
+  addMeshesToScene,
   addGlobalAxes,
   objectGroups
 } from './scene.js';
@@ -12,57 +12,62 @@ import { currentSliderValue, updateSliderMax} from './main.js';
 import { applyVisibility } from './scene.js';
 import { updateStepInput } from './utils.js';
 
-export function fetchSceneData(scene) {
-  // Now you can access the latest slider value anytime
+let pollingHandle = null;
+
+export function fetchSceneData(scene, { scheduleNext = true } = {}) {
   const step = currentSliderValue;
   let url = '/scene';
-  if (step !== null) {
+  if (step !== null && step !== undefined) {
     url += `?step=${step}`;
   }
-  fetch(url)
+
+  const fetchPromise = fetch(url)
     .then(res => res.json())
     .then(data => {
-      updateSliderMax(data.total_steps); // Update the slider max value
-      // Handle frustums
+      updateSliderMax(data.total_steps);
       updateFrustums(scene, data.frustums || [], step);
-
-      // Handle axes
       updateAxes(scene, data.axes || [], step);
 
-      // Handle updated mesh
       if (data.meshes && data.meshes.length > 0) {
-        addMeshToScene(scene, data.meshes[0].mesh, data.meshes[0].color);
+        addMeshesToScene(scene, data.meshes);
+      } else {
+        addMeshesToScene(scene, []);
       }
 
-      // Handle updated point clouds
       if (data.point_clouds && data.point_clouds.length > 0) {
         addPointCloudsToScene(scene, data.point_clouds);
       } else {
-        // Clear the point cloud if none for this step
-        if (objectGroups.updatedPointCloud) {
-          if (Array.isArray(objectGroups.updatedPointCloud)) {
-            objectGroups.updatedPointCloud.forEach(pc => {
-              scene.remove(pc);
-              pc.geometry.dispose();
-              pc.material.dispose();
-            });
-          } else {
-            scene.remove(objectGroups.updatedPointCloud);
-            objectGroups.updatedPointCloud.geometry.dispose();
-            objectGroups.updatedPointCloud.material.dispose();
-          }
-          objectGroups.updatedPointCloud = null;
-        }
+        addPointCloudsToScene(scene, []);
       }
 
-      // Handle global axes
       if (data.add_global_axes) {
         addGlobalAxes(scene, true);
       }
       updateStepInput(step);
-      applyVisibility(); // Re-apply visibility toggles
+      applyVisibility();
     })
-    .catch(console.warn);
+    .catch(err => {
+      console.warn(err);
+    });
 
-  setTimeout(() => fetchSceneData(scene), 1000); // Continue polling
+  if (scheduleNext) {
+    if (pollingHandle !== null) {
+      clearTimeout(pollingHandle);
+    }
+    pollingHandle = setTimeout(() => fetchSceneData(scene, { scheduleNext: true }), 1000);
+  }
+
+  return fetchPromise;
+}
+
+export function stopScenePolling() {
+  if (pollingHandle !== null) {
+    clearTimeout(pollingHandle);
+    pollingHandle = null;
+  }
+}
+
+export function startScenePolling(scene) {
+  stopScenePolling();
+  fetchSceneData(scene, { scheduleNext: true });
 }
