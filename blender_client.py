@@ -285,10 +285,12 @@ class BlenderSceneBridge:
             key = entry.get("label") or f"mesh_{idx}"
             active.add(key)
             obj = self._mesh_cache.get(key)
-            if obj is None or obj.name not in self.collection.objects:
+            if obj is None:
                 obj = self._create_mesh_object(key)
                 self.collection.objects.link(obj)
                 self._mesh_cache[key] = obj
+            elif self.collection.objects.get(obj.name) is None:
+                self.collection.objects.link(obj)
             mesh_data = entry.get("mesh", {})
             vertices = mesh_data.get("vertices", [])
             faces = mesh_data.get("faces", [])
@@ -308,10 +310,12 @@ class BlenderSceneBridge:
             key = entry.get("label") or f"pointcloud_{idx}"
             active.add(key)
             obj = self._point_cloud_cache.get(key)
-            if obj is None or obj.name not in self.collection.objects:
+            if obj is None:
                 obj = self._create_point_cloud_object(key)
                 self.collection.objects.link(obj)
                 self._point_cloud_cache[key] = obj
+            elif self.collection.objects.get(obj.name) is None:
+                self.collection.objects.link(obj)
             points = entry.get("points", [])
             self._update_point_cloud_geometry(obj, points)
             color = entry.get("color", "#00ff00")
@@ -328,10 +332,12 @@ class BlenderSceneBridge:
             key = entry.get("label") or f"frustum_{idx}"
             active.add(key)
             obj = self._frustum_cache.get(key)
-            if obj is None or obj.name not in self.collection.objects:
+            if obj is None:
                 obj = self._create_frustum_object(key)
                 self.collection.objects.link(obj)
                 self._frustum_cache[key] = obj
+            elif self.collection.objects.get(obj.name) is None:
+                self.collection.objects.link(obj)
             vertices, edges = self._build_frustum(entry)
             self._update_frustum_geometry(obj, vertices, edges)
             color = entry.get("color", "#00ff00")
@@ -352,10 +358,12 @@ class BlenderSceneBridge:
             label = entry.get("label") or f"axis_{idx}"
             active.add(label)
             obj = self._axis_cache.get(label)
-            if obj is None or obj.name not in self.collection.objects:
+            if obj is None:
                 obj = self._create_axis_object(label)
                 self.collection.objects.link(obj)
                 self._axis_cache[label] = obj
+            elif self.collection.objects.get(obj.name) is None:
+                self.collection.objects.link(obj)
             pose = entry.get("pose")
             if pose:
                 obj.matrix_world = _pose_to_matrix(pose)
@@ -389,7 +397,6 @@ class BlenderSceneBridge:
     def _create_mesh_object(self, name: str) -> bpy.types.Object:
         mesh = bpy.data.meshes.new(f"{name}_mesh")
         obj = bpy.data.objects.new(name, mesh)
-        self.collection.objects.link(obj)
         obj.display_type = "TEXTURED"
         obj["visualizer_type"] = "mesh"
         return obj
@@ -397,7 +404,6 @@ class BlenderSceneBridge:
     def _create_point_cloud_object(self, name: str) -> bpy.types.Object:
         mesh = bpy.data.meshes.new(f"{name}_points")
         obj = bpy.data.objects.new(name, mesh)
-        self.collection.objects.link(obj)
         obj.display_type = "WIRE"
         obj["visualizer_type"] = "point_cloud"
         return obj
@@ -405,7 +411,6 @@ class BlenderSceneBridge:
     def _create_frustum_object(self, name: str) -> bpy.types.Object:
         mesh = bpy.data.meshes.new(f"{name}_frustum")
         obj = bpy.data.objects.new(name, mesh)
-        self.collection.objects.link(obj)
         obj.display_type = "WIRE"
         obj["visualizer_type"] = "frustum"
         return obj
@@ -414,7 +419,6 @@ class BlenderSceneBridge:
         obj = bpy.data.objects.new(name, None)
         obj.empty_display_type = "ARROWS"
         obj.empty_display_size = size
-        self.collection.objects.link(obj)
         obj["visualizer_type"] = "axis"
         return obj
 
