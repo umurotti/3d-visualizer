@@ -22,8 +22,9 @@ not interfere with existing scene content.
 
 from __future__ import annotations
 
+import collections
 import threading
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Deque, Dict, Iterable, List, Optional, Tuple
 
 import bpy
 import mathutils
@@ -65,6 +66,7 @@ class BlenderSceneBridge:
     """Synchronise remote visualizer3d scenes into Blender."""
 
     COLLECTION_NAME = "Visualizer3D Remote Scene"
+    _TIMER_INTERVAL = 0.25  # seconds between UI updates
 
     def __init__(self, host: Optional[str] = None):
         self.host = host or _read_default_host()
@@ -74,56 +76,93 @@ class BlenderSceneBridge:
         self._frustum_cache: Dict[str, bpy.types.Object] = {}
         self._axis_cache: Dict[str, bpy.types.Object] = {}
         self._materials: Dict[str, bpy.types.Material] = {}
-        self._timer_handle = None
+        self._scene_queue: Deque[dict] = collections.deque(maxlen=2)
         self._lock = threading.Lock()
+        self._poll_thread: Optional[threading.Thread] = None
+        self._stop_event = threading.Event()
         self._pending_step: Optional[int] = None
+        self._poll_interval = 1.0
+        self._timer_handle = None
 
     # ------------------------------------------------------------------
     # Public API
 
     def start_polling(self, interval: float = 1.0, step: Optional[int] = None):
         """Start syncing the scene at a fixed interval (seconds)."""
+        interval = max(0.1, float(interval))
         with self._lock:
-            if self._timer_handle is not None:
+            if self._poll_thread and self._poll_thread.is_alive():
                 raise RuntimeError("Polling already running.")
             self._pending_step = step
+            self._poll_interval = interval
+            self._stop_event.clear()
 
-        def _poll():
-            try:
-                self.sync(step=self._pending_step)
-            except Exception as exc:  # pylint: disable=broad-except
-                print(f"[Visualizer3D] Sync failed: {exc}")
-            return interval
+        self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
+        self._poll_thread.start()
 
-        self._timer_handle = _poll
-        bpy.app.timers.register(self._timer_handle, first_interval=0.1)
+        if self._timer_handle is None:
+            self._timer_handle = self._process_queue
+            bpy.app.timers.register(self._timer_handle, first_interval=self._TIMER_INTERVAL)
+
         print(f"[Visualizer3D] Started polling {self.host} every {interval}s")
 
     def stop_polling(self):
         """Stop the polling loop."""
+        thread = None
         with self._lock:
-            if self._timer_handle is None:
+            if not self._poll_thread:
                 return
-            timer = self._timer_handle
+            self._stop_event.set()
+            thread = self._poll_thread
+            self._poll_thread = None
+
+        if thread:
+            thread.join(timeout=2.0)
+
+        if self._timer_handle is not None:
+            try:
+                bpy.app.timers.unregister(self._timer_handle)
+            except ValueError:
+                pass
             self._timer_handle = None
-        try:
-            bpy.app.timers.unregister(timer)
-        except ValueError:
-            pass
+
         print("[Visualizer3D] Stopped polling.")
 
     def sync(self, step: Optional[int] = None):
-        """Fetch the scene state and mirror it into Blender."""
+        """Fetch the scene state and mirror it into Blender (blocking)."""
         scene = self._fetch_scene(step)
-        if scene is None:
-            return
-        self._sync_meshes(scene.get("meshes", []))
-        self._sync_point_clouds(scene.get("point_clouds", []))
-        self._sync_frustums(scene.get("frustums", []))
-        self._sync_axes(scene.get("axes", []))
-        if scene.get("add_global_axes"):
-            self._ensure_global_axes()
-        print("[Visualizer3D] Scene synchronised.")
+        if scene is not None:
+            self._apply_scene(scene)
+
+    # ------------------------------------------------------------------
+    # Background polling
+
+    def _poll_loop(self):
+        while not self._stop_event.is_set():
+            scene = self._fetch_scene(self._pending_step)
+            if scene is not None:
+                with self._lock:
+                    self._scene_queue.append(scene)
+            self._stop_event.wait(self._poll_interval)
+
+    def _process_queue(self):
+        scene = None
+        with self._lock:
+            if self._scene_queue:
+                scene = self._scene_queue.popleft()
+        if scene is not None:
+            try:
+                self._apply_scene(scene)
+            except Exception as exc:  # pylint: disable=broad-except
+                print(f"[Visualizer3D] Failed to apply scene: {exc}")
+
+        if self._stop_event.is_set():
+            with self._lock:
+                empty = not self._scene_queue
+            if empty:
+                self._timer_handle = None
+                return None
+        return self._TIMER_INTERVAL
 
     # ------------------------------------------------------------------
     # Networking helpers
@@ -140,7 +179,16 @@ class BlenderSceneBridge:
             return None
 
     # ------------------------------------------------------------------
-    # Sync helpers
+    # Scene application helpers
+
+    def _apply_scene(self, scene: dict):
+        self._sync_meshes(scene.get("meshes", []))
+        self._sync_point_clouds(scene.get("point_clouds", []))
+        self._sync_frustums(scene.get("frustums", []))
+        self._sync_axes(scene.get("axes", []))
+        if scene.get("add_global_axes"):
+            self._ensure_global_axes()
+        print("[Visualizer3D] Scene synchronised.")
 
     def _sync_meshes(self, meshes: List[dict]):
         active = set()
@@ -399,4 +447,3 @@ def stop():
         return
     _GLOBAL_BRIDGE.stop_polling()
     _GLOBAL_BRIDGE = None
-
