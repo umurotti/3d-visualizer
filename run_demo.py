@@ -4,13 +4,41 @@ import trimesh
 from viewer_client import Online3DViewer
 import colorsys
 
-def normalize(v):
-    return v / np.linalg.norm(v)
+def safe_normalize(v, eps=1e-8):
+    norm = np.linalg.norm(v)
+    if norm < eps:
+        return np.zeros_like(v)
+    return v / norm
 
 def look_at(camera_position, target_position, up=np.array([0, 1, 0])):
-    forward = normalize(target_position - camera_position)
-    right = normalize(np.cross(forward, up))
+    camera_position = np.asarray(camera_position, dtype=np.float64)
+    target_position = np.asarray(target_position, dtype=np.float64)
+    up = np.asarray(up, dtype=np.float64)
+
+    forward = target_position - camera_position
+    forward = safe_normalize(forward)
+    if not np.any(forward):
+        forward = np.array([0.0, 0.0, -1.0])
+
+    up_vec = safe_normalize(up)
+    if not np.any(up_vec):
+        up_vec = np.array([0.0, 1.0, 0.0])
+
+    if abs(np.dot(forward, up_vec)) > 0.999:
+        candidate_axes = [np.array([1.0, 0.0, 0.0]), np.array([0.0, 0.0, 1.0])]
+        for candidate in candidate_axes:
+            if abs(np.dot(forward, candidate)) < 0.999:
+                up_vec = candidate
+                break
+        up_vec = safe_normalize(up_vec)
+
+    right = np.cross(forward, up_vec)
+    right = safe_normalize(right)
+    if not np.any(right):
+        right = np.array([1.0, 0.0, 0.0])
+
     true_up = np.cross(right, forward)
+    true_up = safe_normalize(true_up)
 
     pose = np.eye(4)
     pose[:3, :3] = np.stack([right, true_up, forward], axis=1)
