@@ -142,6 +142,7 @@ blender_client.stop()
 ```
 
 The client mirrors meshes, frustums, point clouds, and axes into a dedicated `Visualizer3D Remote Scene` collection to keep the imported data isolated from the rest of your file.
+When the remote code increments its step counter, the Blender bridge records a matching keyframe (frame = step) so scrubbing the timeline reproduces the browser slider behaviour; only the objects for the current step are visible on that frame.
 
 
 Inspired by the needs of fast real-time mesh and pose inspection during model training.

@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import collections
 import threading
-from typing import Deque, Dict, Iterable, List, Optional, Tuple
+from typing import Deque, Dict, Iterable, List, Optional, Set, Tuple
 
 import bpy
 import mathutils
@@ -83,6 +83,7 @@ class BlenderSceneBridge:
         self._pending_step: Optional[int] = None
         self._poll_interval = 1.0
         self._timer_handle = None
+        self._visibility_cache: Dict[str, Set[int]] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -165,6 +166,59 @@ class BlenderSceneBridge:
         return self._TIMER_INTERVAL
 
     # ------------------------------------------------------------------
+    # Keyframe helpers
+
+    def _ensure_scene_range(self, step: Optional[int]):
+        if step is None:
+            return
+        scene = bpy.context.scene
+        if scene is None:
+            return
+        frame = int(step)
+        if frame < scene.frame_start:
+            scene.frame_start = frame
+        if frame + 1 > scene.frame_end:
+            scene.frame_end = frame + 1
+
+    def _keyframe_visibility(self, obj: bpy.types.Object, step: Optional[int], hold_visible: bool = False):
+        if step is None:
+            return
+        step = int(step)
+        cache = self._visibility_cache.setdefault(obj.name, set())
+        if step in cache:
+            return
+        cache.add(step)
+
+        frames = []
+        frame_before = step - 1
+        frames.append((frame_before, True))
+        frames.append((step, False))
+        if not hold_visible:
+            frames.append((step + 1, True))
+
+        for frame, hidden in frames:
+            obj.hide_viewport = hidden
+            obj.hide_render = hidden
+            obj.keyframe_insert(data_path="hide_viewport", frame=frame)
+            obj.keyframe_insert(data_path="hide_render", frame=frame)
+            self._ensure_scene_range(frame)
+
+    def _keyframe_transform(self, obj: bpy.types.Object, step: Optional[int]):
+        if step is None:
+            return
+        step = int(step)
+        loc, rot, scale = obj.matrix_world.decompose()
+        obj.location = loc
+        if getattr(obj, "rotation_mode", None) is None:
+            obj.rotation_mode = 'XYZ'
+        obj.rotation_euler = rot.to_euler(obj.rotation_mode)
+        obj.scale = scale
+        obj.keyframe_insert(data_path="location", frame=step)
+        obj.keyframe_insert(data_path="rotation_euler", frame=step)
+        obj.keyframe_insert(data_path="scale", frame=step)
+        self._ensure_scene_range(step)
+
+    # ------------------------------------------------------------------
     # Networking helpers
 
     def _fetch_scene(self, step: Optional[int]) -> Optional[dict]:
@@ -188,12 +242,15 @@ class BlenderSceneBridge:
         self._sync_axes(scene.get("axes", []))
         if scene.get("add_global_axes"):
             self._ensure_global_axes()
+        total_steps = scene.get("total_steps")
+        if isinstance(total_steps, int):
+            self._ensure_scene_range(total_steps)
         print("[Visualizer3D] Scene synchronised.")
 
     def _sync_meshes(self, meshes: List[dict]):
         active = set()
         for idx, entry in enumerate(meshes):
-            key = entry.get("label") or f"mesh_{entry.get('step', 0)}_{idx}"
+            key = entry.get("label") or f"mesh_{idx}"
             active.add(key)
             obj = self._mesh_cache.get(key)
             if obj is None or obj not in self.collection.objects:
@@ -205,14 +262,16 @@ class BlenderSceneBridge:
             self._update_mesh_geometry(obj, vertices, faces)
             color = entry.get("color", "#00ff00")
             self._apply_material(obj, color)
-            obj["visualizer_step"] = entry.get("step", 0)
+            step_val = entry.get("step")
+            obj["visualizer_step"] = step_val if step_val is not None else 0
             obj["visualizer_label"] = entry.get("label", "")
+            self._keyframe_visibility(obj, step_val)
         self._remove_stale(self._mesh_cache, active)
 
     def _sync_point_clouds(self, clouds: List[dict]):
         active = set()
         for idx, entry in enumerate(clouds):
-            key = entry.get("label") or f"pointcloud_{entry.get('step', 0)}_{idx}"
+            key = entry.get("label") or f"pointcloud_{idx}"
             active.add(key)
             obj = self._point_cloud_cache.get(key)
             if obj is None or obj not in self.collection.objects:
@@ -222,13 +281,15 @@ class BlenderSceneBridge:
             self._update_point_cloud_geometry(obj, points)
             color = entry.get("color", "#00ff00")
             self._apply_material(obj, color, emission_strength=3.0)
-            obj["visualizer_step"] = entry.get("step", 0)
+            step_val = entry.get("step")
+            obj["visualizer_step"] = step_val if step_val is not None else 0
+            self._keyframe_visibility(obj, step_val)
         self._remove_stale(self._point_cloud_cache, active)
 
     def _sync_frustums(self, frustums: List[dict]):
         active = set()
         for idx, entry in enumerate(frustums):
-            key = f"frustum_{entry.get('step', 0)}_{idx}"
+            key = entry.get("label") or f"frustum_{idx}"
             active.add(key)
             obj = self._frustum_cache.get(key)
             if obj is None or obj not in self.collection.objects:
@@ -241,13 +302,16 @@ class BlenderSceneBridge:
             pose = entry.get("pose")
             if pose:
                 obj.matrix_world = _pose_to_matrix(pose)
-            obj["visualizer_step"] = entry.get("step", 0)
+                self._keyframe_transform(obj, entry.get("step"))
+            step_val = entry.get("step")
+            obj["visualizer_step"] = step_val if step_val is not None else 0
+            self._keyframe_visibility(obj, step_val)
         self._remove_stale(self._frustum_cache, active)
 
     def _sync_axes(self, axes: List[dict]):
         active = set()
         for idx, entry in enumerate(axes):
-            label = entry.get("label") or f"axis_{entry.get('step', 0)}_{idx}"
+            label = entry.get("label") or f"axis_{idx}"
             active.add(label)
             obj = self._axis_cache.get(label)
             if obj is None or obj not in self.collection.objects:
@@ -256,7 +320,10 @@ class BlenderSceneBridge:
             pose = entry.get("pose")
             if pose:
                 obj.matrix_world = _pose_to_matrix(pose)
-            obj["visualizer_step"] = entry.get("step", 0)
+                self._keyframe_transform(obj, entry.get("step"))
+            step_val = entry.get("step")
+            obj["visualizer_step"] = step_val if step_val is not None else 0
+            self._keyframe_visibility(obj, step_val)
         self._remove_stale(self._axis_cache, active)
 
     def _ensure_global_axes(self):
@@ -266,6 +333,8 @@ class BlenderSceneBridge:
         obj = self._create_axis_object("GlobalAxes", size=0.6)
         self._axis_cache[key] = obj
         obj.matrix_world = mathutils.Matrix.Identity(4)
+        self._keyframe_transform(obj, 0)
+        self._keyframe_visibility(obj, 0, hold_visible=True)
 
     # ------------------------------------------------------------------
     # Creation helpers
@@ -422,6 +491,8 @@ class BlenderSceneBridge:
         stale = [key for key in cache if key not in active]
         for key in stale:
             obj = cache.pop(key, None)
+            if obj:
+                self._visibility_cache.pop(obj.name, None)
             if obj and obj.name in self.collection.objects:
                 self.collection.objects.unlink(obj)
             if obj:
