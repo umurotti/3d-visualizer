@@ -85,7 +85,8 @@ def add_mesh():
     scene["meshes"].append({
         "mesh": data["mesh"],
         "color": data["color"],
-        "step": data["step"]
+        "step": data["step"],
+        "label": data.get("label")
     })
     return "Updated mesh set", 200
 
