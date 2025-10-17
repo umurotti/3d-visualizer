@@ -1,0 +1,402 @@
+"""
+Blender client for the visualizer3d scene API.
+
+This module is meant to be executed inside Blender's Python environment.
+It periodically polls a remote visualizer3d Flask server (typically running on
+the remote machine) and mirrors meshes, point clouds, frustums, and axes inside
+the current Blender scene.
+
+Usage (inside Blender's scripting console or as part of an add-on):
+
+    from visualizer3d import blender_client
+    bridge = blender_client.BlenderSceneBridge(host="http://localhost:5000")
+    bridge.start_polling(interval=1.0)  # seconds between synchronisation calls
+
+To stop the polling loop:
+
+    bridge.stop_polling()
+
+The bridge keeps all imported objects inside a dedicated collection so it will
+not interfere with existing scene content.
+"""
+
+from __future__ import annotations
+
+import threading
+from typing import Dict, Iterable, List, Optional, Tuple
+
+import bpy
+import mathutils
+import requests
+
+
+def _read_default_host() -> str:
+    """Mirror the behaviour of viewer_client by looking for port.txt."""
+    try:
+        with open("port.txt", "r", encoding="utf-8") as fp:
+            port = fp.read().strip()
+    except OSError:
+        port = "5000"
+    return f"http://localhost:{port}"
+
+
+def _hex_to_rgb(color: str) -> Tuple[float, float, float]:
+    """Convert a hex colour (e.g. '#ff00ff') into linear RGB floats."""
+    if not isinstance(color, str) or not color.startswith("#") or len(color) != 7:
+        return 0.2, 0.8, 0.2  # default green
+    r = int(color[1:3], 16) / 255.0
+    g = int(color[3:5], 16) / 255.0
+    b = int(color[5:7], 16) / 255.0
+    return r, g, b
+
+
+def _pose_to_matrix(pose: Iterable[Iterable[float]]) -> mathutils.Matrix:
+    """Convert a nested iterable into a Blender Matrix."""
+    flat = [float(x) for row in pose for x in row]
+    if len(flat) != 16:
+        raise ValueError("Pose must contain 16 floats.")
+    return mathutils.Matrix(((flat[0], flat[1], flat[2], flat[3]),
+                             (flat[4], flat[5], flat[6], flat[7]),
+                             (flat[8], flat[9], flat[10], flat[11]),
+                             (flat[12], flat[13], flat[14], flat[15])))
+
+
+class BlenderSceneBridge:
+    """Synchronise remote visualizer3d scenes into Blender."""
+
+    COLLECTION_NAME = "Visualizer3D Remote Scene"
+
+    def __init__(self, host: Optional[str] = None):
+        self.host = host or _read_default_host()
+        self.collection = self._ensure_collection(self.COLLECTION_NAME)
+        self._mesh_cache: Dict[str, bpy.types.Object] = {}
+        self._point_cloud_cache: Dict[str, bpy.types.Object] = {}
+        self._frustum_cache: Dict[str, bpy.types.Object] = {}
+        self._axis_cache: Dict[str, bpy.types.Object] = {}
+        self._materials: Dict[str, bpy.types.Material] = {}
+        self._timer_handle = None
+        self._lock = threading.Lock()
+        self._pending_step: Optional[int] = None
+
+    # ------------------------------------------------------------------
+    # Public API
+
+    def start_polling(self, interval: float = 1.0, step: Optional[int] = None):
+        """Start syncing the scene at a fixed interval (seconds)."""
+        with self._lock:
+            if self._timer_handle is not None:
+                raise RuntimeError("Polling already running.")
+            self._pending_step = step
+
+        def _poll():
+            try:
+                self.sync(step=self._pending_step)
+            except Exception as exc:  # pylint: disable=broad-except
+                print(f"[Visualizer3D] Sync failed: {exc}")
+            return interval
+
+        self._timer_handle = _poll
+        bpy.app.timers.register(self._timer_handle, first_interval=0.1)
+        print(f"[Visualizer3D] Started polling {self.host} every {interval}s")
+
+    def stop_polling(self):
+        """Stop the polling loop."""
+        with self._lock:
+            if self._timer_handle is None:
+                return
+            timer = self._timer_handle
+            self._timer_handle = None
+        try:
+            bpy.app.timers.unregister(timer)
+        except ValueError:
+            pass
+        print("[Visualizer3D] Stopped polling.")
+
+    def sync(self, step: Optional[int] = None):
+        """Fetch the scene state and mirror it into Blender."""
+        scene = self._fetch_scene(step)
+        if scene is None:
+            return
+        self._sync_meshes(scene.get("meshes", []))
+        self._sync_point_clouds(scene.get("point_clouds", []))
+        self._sync_frustums(scene.get("frustums", []))
+        self._sync_axes(scene.get("axes", []))
+        if scene.get("add_global_axes"):
+            self._ensure_global_axes()
+        print("[Visualizer3D] Scene synchronised.")
+
+    # ------------------------------------------------------------------
+    # Networking helpers
+
+    def _fetch_scene(self, step: Optional[int]) -> Optional[dict]:
+        url = f"{self.host}/scene"
+        params = {"step": step} if step is not None else None
+        try:
+            response = requests.get(url, params=params, timeout=5)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as exc:
+            print(f"[Visualizer3D] Could not fetch scene: {exc}")
+            return None
+
+    # ------------------------------------------------------------------
+    # Sync helpers
+
+    def _sync_meshes(self, meshes: List[dict]):
+        active = set()
+        for idx, entry in enumerate(meshes):
+            key = entry.get("label") or f"mesh_{entry.get('step', 0)}_{idx}"
+            active.add(key)
+            obj = self._mesh_cache.get(key)
+            if obj is None or obj not in self.collection.objects:
+                obj = self._create_mesh_object(key)
+                self._mesh_cache[key] = obj
+            mesh_data = entry.get("mesh", {})
+            vertices = mesh_data.get("vertices", [])
+            faces = mesh_data.get("faces", [])
+            self._update_mesh_geometry(obj, vertices, faces)
+            color = entry.get("color", "#00ff00")
+            self._apply_material(obj, color)
+            obj["visualizer_step"] = entry.get("step", 0)
+            obj["visualizer_label"] = entry.get("label", "")
+        self._remove_stale(self._mesh_cache, active)
+
+    def _sync_point_clouds(self, clouds: List[dict]):
+        active = set()
+        for idx, entry in enumerate(clouds):
+            key = entry.get("label") or f"pointcloud_{entry.get('step', 0)}_{idx}"
+            active.add(key)
+            obj = self._point_cloud_cache.get(key)
+            if obj is None or obj not in self.collection.objects:
+                obj = self._create_point_cloud_object(key)
+                self._point_cloud_cache[key] = obj
+            points = entry.get("points", [])
+            self._update_point_cloud_geometry(obj, points)
+            color = entry.get("color", "#00ff00")
+            self._apply_material(obj, color, emission_strength=3.0)
+            obj["visualizer_step"] = entry.get("step", 0)
+        self._remove_stale(self._point_cloud_cache, active)
+
+    def _sync_frustums(self, frustums: List[dict]):
+        active = set()
+        for idx, entry in enumerate(frustums):
+            key = f"frustum_{entry.get('step', 0)}_{idx}"
+            active.add(key)
+            obj = self._frustum_cache.get(key)
+            if obj is None or obj not in self.collection.objects:
+                obj = self._create_frustum_object(key)
+                self._frustum_cache[key] = obj
+            vertices, edges = self._build_frustum(entry)
+            self._update_frustum_geometry(obj, vertices, edges)
+            color = entry.get("color", "#00ff00")
+            self._apply_wire_material(obj, color)
+            pose = entry.get("pose")
+            if pose:
+                obj.matrix_world = _pose_to_matrix(pose)
+            obj["visualizer_step"] = entry.get("step", 0)
+        self._remove_stale(self._frustum_cache, active)
+
+    def _sync_axes(self, axes: List[dict]):
+        active = set()
+        for idx, entry in enumerate(axes):
+            label = entry.get("label") or f"axis_{entry.get('step', 0)}_{idx}"
+            active.add(label)
+            obj = self._axis_cache.get(label)
+            if obj is None or obj not in self.collection.objects:
+                obj = self._create_axis_object(label)
+                self._axis_cache[label] = obj
+            pose = entry.get("pose")
+            if pose:
+                obj.matrix_world = _pose_to_matrix(pose)
+            obj["visualizer_step"] = entry.get("step", 0)
+        self._remove_stale(self._axis_cache, active)
+
+    def _ensure_global_axes(self):
+        key = "global_axes"
+        if key in self._axis_cache:
+            return
+        obj = self._create_axis_object("GlobalAxes", size=0.6)
+        self._axis_cache[key] = obj
+        obj.matrix_world = mathutils.Matrix.Identity(4)
+
+    # ------------------------------------------------------------------
+    # Creation helpers
+
+    def _ensure_collection(self, name: str) -> bpy.types.Collection:
+        collection = bpy.data.collections.get(name)
+        if collection is None:
+            collection = bpy.data.collections.new(name)
+            bpy.context.scene.collection.children.link(collection)
+        return collection
+
+    def _create_mesh_object(self, name: str) -> bpy.types.Object:
+        mesh = bpy.data.meshes.new(f"{name}_mesh")
+        obj = bpy.data.objects.new(name, mesh)
+        self.collection.objects.link(obj)
+        obj.display_type = "TEXTURED"
+        obj["visualizer_type"] = "mesh"
+        return obj
+
+    def _create_point_cloud_object(self, name: str) -> bpy.types.Object:
+        mesh = bpy.data.meshes.new(f"{name}_points")
+        obj = bpy.data.objects.new(name, mesh)
+        self.collection.objects.link(obj)
+        obj.display_type = "WIRE"
+        obj["visualizer_type"] = "point_cloud"
+        return obj
+
+    def _create_frustum_object(self, name: str) -> bpy.types.Object:
+        mesh = bpy.data.meshes.new(f"{name}_frustum")
+        obj = bpy.data.objects.new(name, mesh)
+        self.collection.objects.link(obj)
+        obj.display_type = "WIRE"
+        obj["visualizer_type"] = "frustum"
+        return obj
+
+    def _create_axis_object(self, name: str, size: float = 0.4) -> bpy.types.Object:
+        obj = bpy.data.objects.new(name, None)
+        obj.empty_display_type = "ARROWS"
+        obj.empty_display_size = size
+        self.collection.objects.link(obj)
+        obj["visualizer_type"] = "axis"
+        return obj
+
+    # ------------------------------------------------------------------
+    # Geometry updates
+
+    def _update_mesh_geometry(self, obj: bpy.types.Object,
+                              vertices: Iterable[Iterable[float]],
+                              faces: Iterable[Iterable[int]]):
+        mesh = obj.data
+        mesh.clear_geometry()
+        verts = [tuple(map(float, v)) for v in vertices]
+        polys = [tuple(f) for f in faces]
+        mesh.from_pydata(verts, [], polys)
+        mesh.update()
+
+    def _update_point_cloud_geometry(self, obj: bpy.types.Object,
+                                     points: Iterable[Iterable[float]]):
+        mesh = obj.data
+        mesh.clear_geometry()
+        verts = [tuple(map(float, v)) for v in points]
+        mesh.from_pydata(verts, [], [])
+        mesh.update()
+
+    def _update_frustum_geometry(self, obj: bpy.types.Object,
+                                 vertices: List[Tuple[float, float, float]],
+                                 edges: List[Tuple[int, int]]):
+        mesh = obj.data
+        mesh.clear_geometry()
+        mesh.from_pydata(vertices, edges, [])
+        mesh.update()
+
+    def _build_frustum(self, entry: dict) -> Tuple[List[Tuple[float, float, float]],
+                                                   List[Tuple[int, int]]]:
+        intrinsic = entry.get("intrinsics") or entry.get("intrinsic")
+        width = entry.get("width", 640)
+        height = entry.get("height", 480)
+        near = entry.get("near", 0.01)
+        far = entry.get("far", 1.0)
+
+        fx = intrinsic[0][0]
+        fy = intrinsic[1][1]
+        cx = intrinsic[0][2]
+        cy = intrinsic[1][2]
+
+        def project(depth):
+            corners = []
+            for u, v in ((0, 0), (width, 0), (width, height), (0, height)):
+                x = (u - cx) * depth / fx
+                y = (v - cy) * depth / fy
+                corners.append((x, -y, depth))
+            return corners
+
+        near_pts = project(near)
+        far_pts = project(far)
+        origin = (0.0, 0.0, 0.0)
+        vertices = [origin] + near_pts + far_pts
+
+        edges = [
+            (0, 1), (0, 2), (0, 3), (0, 4),
+            (1, 2), (2, 3), (3, 4), (4, 1),
+            (5, 6), (6, 7), (7, 8), (8, 5),
+            (1, 5), (2, 6), (3, 7), (4, 8),
+        ]
+        return vertices, edges
+
+    # ------------------------------------------------------------------
+    # Materials
+
+    def _apply_material(self, obj: bpy.types.Object, color: str,
+                        emission_strength: float = 0.0):
+        material = self._get_or_create_material(color, emission_strength)
+        if obj.data.materials:
+            obj.data.materials[0] = material
+        else:
+            obj.data.materials.append(material)
+
+    def _apply_wire_material(self, obj: bpy.types.Object, color: str):
+        material = self._get_or_create_material(color, emission_strength=2.0)
+        obj.color = (*_hex_to_rgb(color), 1.0)
+        if obj.data.materials:
+            obj.data.materials[0] = material
+        else:
+            obj.data.materials.append(material)
+
+    def _get_or_create_material(self, color: str,
+                                emission_strength: float = 0.0) -> bpy.types.Material:
+        key = f"{color}_{emission_strength}"
+        material = self._materials.get(key)
+        if material:
+            return material
+        material = bpy.data.materials.new(name=f"Visualizer_{color}")
+        material.use_nodes = True
+        nodes = material.node_tree.nodes
+        links = material.node_tree.links
+        nodes.clear()
+        output = nodes.new(type="ShaderNodeOutputMaterial")
+        shader = nodes.new(type="ShaderNodeEmission" if emission_strength > 0 else "ShaderNodeBsdfPrincipled")
+        rgb = _hex_to_rgb(color)
+        if emission_strength > 0:
+            shader.inputs["Color"].default_value = (*rgb, 1.0)
+            shader.inputs["Strength"].default_value = emission_strength
+        else:
+            shader.inputs["Base Color"].default_value = (*rgb, 1.0)
+            shader.inputs["Roughness"].default_value = 0.6
+        links.new(shader.outputs[0], output.inputs[0])
+        self._materials[key] = material
+        return material
+
+    # ------------------------------------------------------------------
+    # Utility
+
+    def _remove_stale(self, cache: Dict[str, bpy.types.Object], active: set):
+        stale = [key for key in cache if key not in active]
+        for key in stale:
+            obj = cache.pop(key, None)
+            if obj and obj.name in self.collection.objects:
+                self.collection.objects.unlink(obj)
+            if obj:
+                bpy.data.objects.remove(obj, do_unlink=True)
+
+
+_GLOBAL_BRIDGE: Optional[BlenderSceneBridge] = None
+
+
+def start(host: Optional[str] = None, interval: float = 1.0, step: Optional[int] = None):
+    """Start a global bridge instance (useful from the Blender GUI)."""
+    global _GLOBAL_BRIDGE  # pylint: disable=global-statement
+    if _GLOBAL_BRIDGE is None:
+        _GLOBAL_BRIDGE = BlenderSceneBridge(host=host)
+    _GLOBAL_BRIDGE.start_polling(interval=interval, step=step)
+    return _GLOBAL_BRIDGE
+
+
+def stop():
+    """Stop the global bridge if it exists."""
+    global _GLOBAL_BRIDGE  # pylint: disable=global-statement
+    if _GLOBAL_BRIDGE is None:
+        return
+    _GLOBAL_BRIDGE.stop_polling()
+    _GLOBAL_BRIDGE = None
+

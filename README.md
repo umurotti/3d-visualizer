@@ -121,4 +121,27 @@ You can download the Stanford Bunny `.ply` file from the [Stanford 3D Scanning R
 - Easily embeddable in larger training/experiment loops
 
 
+## 🧩 Blender Integration (Local Viewer)
+
+If you prefer to inspect the remote scene inside Blender instead of the browser, you can run the Blender client locally while your remote training job keeps posting to the Flask server.
+
+1. Ensure Blender's Python can import `requests` and that this repository path is added to `sys.path` (for example, `sys.path.append('/path/to/diffusion-prior')`).
+2. In Blender's Scripting workspace run:
+
+```python
+from visualizer3d import blender_client
+bridge = blender_client.start(host='http://localhost:5000', interval=1.0)
+```
+
+   Adjust the host if you port-forward the Flask server from the remote machine.
+3. When finished, stop the sync with:
+
+```python
+from visualizer3d import blender_client
+blender_client.stop()
+```
+
+The client mirrors meshes, frustums, point clouds, and axes into a dedicated `Visualizer3D Remote Scene` collection to keep the imported data isolated from the rest of your file.
+
+
 Inspired by the needs of fast real-time mesh and pose inspection during model training.
