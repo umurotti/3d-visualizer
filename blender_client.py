@@ -84,6 +84,7 @@ class BlenderSceneBridge:
         self._poll_interval = 1.0
         self._timer_handle = None
         self._visibility_cache: Dict[str, Set[int]] = {}
+        self._latest_step = 0
 
     # ------------------------------------------------------------------
     # Public API
@@ -97,6 +98,7 @@ class BlenderSceneBridge:
             self._pending_step = step
             self._poll_interval = interval
             self._stop_event.clear()
+            self._latest_step = 0
 
         self._poll_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._poll_thread.start()
@@ -226,6 +228,26 @@ class BlenderSceneBridge:
         obj.keyframe_insert(data_path="rotation_euler", frame=step)
         obj.keyframe_insert(data_path="scale", frame=step)
         self._ensure_scene_range(step)
+        self._register_step(step)
+
+    def _register_step(self, step: Optional[int]):
+        if step is None:
+            return
+        step = int(step)
+        if step > self._latest_step:
+            self._latest_step = step
+
+    def _update_timeline_bounds(self):
+        scene = bpy.context.scene
+        if scene is None:
+            return
+        end = max(self._latest_step + 1, 1)
+        if scene.frame_end != end:
+            scene.frame_end = end
+        if scene.frame_start != 0:
+            scene.frame_start = 0
+        if scene.frame_current < self._latest_step:
+            scene.frame_current = self._latest_step
 
     # ------------------------------------------------------------------
     # Networking helpers
@@ -253,7 +275,8 @@ class BlenderSceneBridge:
             self._ensure_global_axes()
         total_steps = scene.get("total_steps")
         if isinstance(total_steps, int):
-            self._ensure_scene_range(total_steps)
+            self._register_step(total_steps)
+        self._update_timeline_bounds()
         print("[Visualizer3D] Scene synchronised.")
 
     def _sync_meshes(self, meshes: List[dict]):
@@ -275,6 +298,7 @@ class BlenderSceneBridge:
             obj["visualizer_step"] = step_val if step_val is not None else 0
             obj["visualizer_label"] = entry.get("label", "")
             self._keyframe_visibility(obj, step_val)
+            self._register_step(step_val)
         self._remove_stale(self._mesh_cache, active)
 
     def _sync_point_clouds(self, clouds: List[dict]):
@@ -293,6 +317,7 @@ class BlenderSceneBridge:
             step_val = entry.get("step")
             obj["visualizer_step"] = step_val if step_val is not None else 0
             self._keyframe_visibility(obj, step_val)
+            self._register_step(step_val)
         self._remove_stale(self._point_cloud_cache, active)
 
     def _sync_frustums(self, frustums: List[dict]):
@@ -315,6 +340,7 @@ class BlenderSceneBridge:
             step_val = entry.get("step")
             obj["visualizer_step"] = step_val if step_val is not None else 0
             self._keyframe_visibility(obj, step_val)
+            self._register_step(step_val)
         self._remove_stale(self._frustum_cache, active)
 
     def _sync_axes(self, axes: List[dict]):
@@ -333,6 +359,7 @@ class BlenderSceneBridge:
             step_val = entry.get("step")
             obj["visualizer_step"] = step_val if step_val is not None else 0
             self._keyframe_visibility(obj, step_val)
+            self._register_step(step_val)
         self._remove_stale(self._axis_cache, active)
 
     def _ensure_global_axes(self):
