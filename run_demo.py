@@ -84,6 +84,8 @@ num_steps = 36
 spin_angles = np.linspace(0.0, 2 * np.pi, num_steps, endpoint=False)
 
 for step_idx, theta in enumerate(spin_angles, start=1):
+    viewer.step = step_idx
+
     scale_factor = 1.0 + 0.12 * np.sin(theta * 3.0)
     tilt_angle = 0.35 * np.sin(theta * 2.0)
     orbit_height = 0.2 * np.sin(theta * 1.5)
@@ -128,9 +130,10 @@ for step_idx, theta in enumerate(spin_angles, start=1):
     viewer.add_frustum(chase_pose, color=rainbow, visualize_orientation=True, commit=False)
 
     top_pose = look_at(orbit_position + np.array([0.0, 1.6, 0.0]), orbit_position)
-    viewer.add_frustum(top_pose, color="#44aaff", visualize_orientation=False)
+    viewer.add_frustum(top_pose, color="#44aaff", visualize_orientation=False, commit=False)
 
     print(f"[Demo] Step {step_idx}/{num_steps} -> radius={radius:.2f}, scale={scale_factor:.2f}")
     time.sleep(0.15)
 
+viewer.step = num_steps + 1
 print(f"Demo complete. Scrub the Blender timeline (frames 0..{num_steps}) to revisit each step.")
