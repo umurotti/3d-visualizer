@@ -285,8 +285,9 @@ class BlenderSceneBridge:
             key = entry.get("label") or f"mesh_{idx}"
             active.add(key)
             obj = self._mesh_cache.get(key)
-            if obj is None or obj not in self.collection.objects:
+            if obj is None or obj.name not in self.collection.objects:
                 obj = self._create_mesh_object(key)
+                self.collection.objects.link(obj)
                 self._mesh_cache[key] = obj
             mesh_data = entry.get("mesh", {})
             vertices = mesh_data.get("vertices", [])
@@ -307,8 +308,9 @@ class BlenderSceneBridge:
             key = entry.get("label") or f"pointcloud_{idx}"
             active.add(key)
             obj = self._point_cloud_cache.get(key)
-            if obj is None or obj not in self.collection.objects:
+            if obj is None or obj.name not in self.collection.objects:
                 obj = self._create_point_cloud_object(key)
+                self.collection.objects.link(obj)
                 self._point_cloud_cache[key] = obj
             points = entry.get("points", [])
             self._update_point_cloud_geometry(obj, points)
@@ -326,8 +328,9 @@ class BlenderSceneBridge:
             key = entry.get("label") or f"frustum_{idx}"
             active.add(key)
             obj = self._frustum_cache.get(key)
-            if obj is None or obj not in self.collection.objects:
+            if obj is None or obj.name not in self.collection.objects:
                 obj = self._create_frustum_object(key)
+                self.collection.objects.link(obj)
                 self._frustum_cache[key] = obj
             vertices, edges = self._build_frustum(entry)
             self._update_frustum_geometry(obj, vertices, edges)
@@ -349,8 +352,9 @@ class BlenderSceneBridge:
             label = entry.get("label") or f"axis_{idx}"
             active.add(label)
             obj = self._axis_cache.get(label)
-            if obj is None or obj not in self.collection.objects:
+            if obj is None or obj.name not in self.collection.objects:
                 obj = self._create_axis_object(label)
+                self.collection.objects.link(obj)
                 self._axis_cache[label] = obj
             pose = entry.get("pose")
             if pose:
