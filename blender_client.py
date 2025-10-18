@@ -198,7 +198,7 @@ class BlenderSceneBridge:
         frames = []
         frame_before = max(step - 1, 0)
         if frame_before < step:
-            frames.append((frame_before, True))
+            frames.append((frame_before, not hold_visible))
         frames.append((step, False))
         if not hold_visible:
             frames.append((step + 1, True))

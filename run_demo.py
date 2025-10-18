@@ -119,6 +119,10 @@ for step_idx, theta in enumerate(spin_angles, start=1):
     highlight_points = (highlight_base @ mesh_transform.T)[:, :3]
     viewer.add_point_cloud(highlight_points, color="#ffcc00", label=f"bunny_highlight_{step_idx}", commit=False)
 
+    full_pc = np.hstack([pointcloud, np.ones((pointcloud.shape[0], 1))])
+    transformed_pc = (full_pc @ mesh_transform.T)[:, :3]
+    viewer.add_point_cloud(transformed_pc, color="#66ccff", label=f"bunny_points_{step_idx}", commit=False)
+
     cam_offset = np.array([
         0.8 * np.cos(theta + np.pi / 3),
         0.35 + 0.15 * np.cos(theta * 1.3),
