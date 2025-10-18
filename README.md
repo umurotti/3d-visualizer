@@ -125,7 +125,7 @@ You can download the Stanford Bunny `.ply` file from the [Stanford 3D Scanning R
 
 If you prefer to inspect the remote scene inside Blender instead of the browser, you can run the Blender client locally while your remote training job keeps posting to the Flask server.
 
-1. Ensure Blender's Python can import `requests` and that this repository path is added to `sys.path` (for example, `sys.path.append('/path/to/diffusion-prior')`).
+1. Ensure Blender's Python can import `requests` and that this repository path is added to `sys.path` (for example, `sys.path.append('/path/to/...')`).
 2. In Blender's Scripting workspace run:
 
 ```python
