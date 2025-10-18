@@ -49,7 +49,7 @@ def look_at(camera_position, target_position, up=np.array([0, 1, 0])):
 mesh_path = "demo/bunny/reconstruction/bun_zipper_res3.ply"
 mesh = trimesh.load(mesh_path)
 centered = mesh.copy()
-centered.apply_translation(-mesh.bounding_box.centroid)  # center at origin
+centered.apply_translation(-mesh.bounding_box.centroid)
 initial_center = np.zeros(3)
 
 # === Prepare viewer ===
@@ -66,17 +66,17 @@ highlight_count = min(400, pointcloud.shape[0])
 highlight_idx = np.linspace(0, pointcloud.shape[0] - 1, highlight_count, dtype=int)
 highlight_base = np.hstack([pointcloud[highlight_idx], np.ones((highlight_count, 1))])
 
-# Seed frame 0 with the reference mesh, origin axis, and point cloud
-viewer.add_mesh(centered, label="bunny_mesh", color="#f8b400", commit=False)
-viewer.add_object_axis(np.eye(4), label="bunny_axis", commit=False)
-viewer.add_point_cloud(pointcloud, color="#66ccff", label="bunny_points", commit=False)
+# Seed frame 0
+viewer.step = 0
+viewer.add_mesh(centered, label="bunny_mesh_0", color="#f8b400", commit=False)
+viewer.add_object_axis(np.eye(4), label="bunny_axis_0", commit=False)
+viewer.add_point_cloud(pointcloud, color="#66ccff", label="bunny_points_0", commit=False)
 viewer.add_global_axes()
 
-# === Known view (red frustum) ===
+# Known view
 known_pose = look_at(np.array([0.6, 0.6, 0.6]), initial_center)
-viewer.add_frustum(known_pose, color="#ff5555", visualize_orientation=True)
+viewer.add_frustum(known_pose, color="#ff5555", visualize_orientation=True, commit=False)
 
-# === Advanced orbit demo ===
 print("Starting orbit demo with animated mesh, axes, point clouds, and frustums...")
 
 radius = 1.1
@@ -109,15 +109,15 @@ for step_idx, theta in enumerate(spin_angles, start=1):
 
     dynamic_mesh = centered.copy()
     dynamic_mesh.apply_transform(mesh_transform)
-    viewer.add_mesh(dynamic_mesh, label="bunny_mesh", color="#f8b400", commit=False)
+    viewer.add_mesh(dynamic_mesh, label=f"bunny_mesh_{step_idx}", color="#f8b400", commit=False)
 
     ax_pose = np.eye(4)
     ax_pose[:3, :3] = (spin_matrix @ tilt_matrix)[:3, :3]
     ax_pose[:3, 3] = orbit_position
-    viewer.add_object_axis(ax_pose, label="bunny_axis", commit=False)
+    viewer.add_object_axis(ax_pose, label=f"bunny_axis_{step_idx}", commit=False)
 
     highlight_points = (highlight_base @ mesh_transform.T)[:, :3]
-    viewer.add_point_cloud(highlight_points, color="#ffcc00", label="bunny_highlight", commit=False)
+    viewer.add_point_cloud(highlight_points, color="#ffcc00", label=f"bunny_highlight_{step_idx}", commit=False)
 
     cam_offset = np.array([
         0.8 * np.cos(theta + np.pi / 3),

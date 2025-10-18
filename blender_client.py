@@ -246,8 +246,6 @@ class BlenderSceneBridge:
             scene.frame_end = end
         if scene.frame_start != 0:
             scene.frame_start = 0
-        if scene.frame_current < self._latest_step:
-            scene.frame_current = self._latest_step
 
     # ------------------------------------------------------------------
     # Networking helpers

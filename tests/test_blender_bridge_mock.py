@@ -203,7 +203,7 @@ def test_keyframes_and_timeline():
     assert mesh_obj.keyframes["hide_render"] == [4, 5, 6]
     assert scene_stub.frame_start == 0
     assert scene_stub.frame_end == 6  # total_steps + 1
-    assert scene_stub.frame_current == 5
+    assert scene_stub.frame_current == 0
     assert bridge._latest_step == 5
 
 
